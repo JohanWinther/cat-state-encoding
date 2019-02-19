@@ -12,7 +12,7 @@
 # $$ \underbrace{(c_0\ket{0} + c_1\ket{1})}_{\text{Qubit}}\underbrace{\ket{0}}_{\text{Cavity}} \rightarrow \ket{0}(c_0\ket{C_0} + c_1 \ket{C_1}) $$
 # where $ \ket{C_0} \propto \ket{-\alpha} + \ket{\alpha} $ is the logical zero and $ \ket{C_1} \propto \ket{-i\alpha} + \ket{i\alpha} $ is the logical one. The method is to optimise such that the six cardinal points on the Bloch sphere realise these cavity cat states and puts the qubit to the ground state.
 
-# In[ ]:
+# In[38]:
 
 
 get_ipython().run_line_magic('matplotlib', 'inline')
@@ -21,10 +21,10 @@ import matplotlib.pyplot as plt
 import datetime
 
 
-# In[ ]:
+# In[48]:
 
 
-from qutip import identity, sigmax, sigmay, sigmaz, sigmam, sigmap, tensor, projection, create
+from qutip import identity, sigmax, sigmay, sigmaz, sigmam, sigmap, tensor, projection, create, destroy, displace
 from qutip import Qobj, basis, coherent
 from qutip.superoperator import liouvillian, sprepost
 from qutip.qip import hadamard_transform
@@ -32,20 +32,13 @@ from qutip.visualization import plot_wigner, plot_wigner_fock_distribution
 import qutip.logging_utils as logging
 logger = logging.get_logger()
 #Set this to None or logging.WARN for 'quiet' execution
-log_level = logging.INFO
+#log_level = logging.INFO
+log_level = logging.WARN
 #QuTiP control modules
 import qutip.control.pulseoptim as cpo
 
 file_name = 'Test1'
-
-
-# In[ ]:
-
-
-b = projection(2, 1, 1)
-#b = Qobj([[0,0],[0,1]]).dag()
-b.dag()**2 * b**2
-sigmap()
+pi = np.pi
 
 
 # # Physics
@@ -54,11 +47,11 @@ sigmap()
 # 
 # $$ \bu\bd = \ket{1}\bra{1} $$
 
-# In[ ]:
+# In[56]:
 
 
-N = 30 # Hilbert space size
-alpha = 3
+N = 15 # Hilbert space size
+alpha = 2
 
 Sx = sigmax()
 Sy = sigmay()
@@ -66,15 +59,15 @@ Sz = sigmaz()
 Sm = sigmam()
 Si = identity(2)
 Ri = identity(N)
-a  = create(N)
+a  = destroy(N)
 b  = projection(2, 1, 1)
 
 # Hamiltonian - RWA JC, qubit-storage coupling
-w_q = 1.0    # Energy of the 2-level system.
-w_r = 1.0    # Resonator freq
-X_qr= 1.0    # qubit-storage coupling strength
-K_r   = 1.0    # Kerr res
-K_q   = 1.0    # Kerr qubit
+w_q = 2*pi*6.2815e9    # Energy of the 2-level system.
+w_r = 2*pi*8.3056e9    # Resonator freq
+X_qr= 2*pi*1.97e6    # qubit-storage coupling strength
+K_r   = 0.0    # Kerr res
+K_q   = 0.0    # Kerr qubit
 
 H0 = ( w_r* tensor(Si, a.dag()*a)
     + (w_q - X_qr * tensor(Si, a.dag()*a)) * tensor(b.dag()*b, Ri)
@@ -101,21 +94,24 @@ q_i = b
 r_r = a.dag()
 r_i = a
 
-ctrls = [tensor(q_r, Ri), tensor(q_i, Ri),tensor(Si, r_r),tensor(Si, r_i)]
+ctrls = [tensor(Sx, Ri), tensor(Sy, Ri), tensor(Sz,Ri), tensor(Si, a.dag()),tensor(Si, a)]
+
+#ctrls = [tensor(Sx,Ri), tensor(Sy, Ri), tensor(Sz, Ri), tensor(Si, a.dag()), tensor(Si, a)]
 
 # Starting state
-phi = tensor(basis(2,1), basis(N,0))
 
-N_alpha = 1/(2*(1+np.exp(-2*abs(alpha)^2)))
-res_targ_0 = (coherent(N, alpha*j) + coherent(N,-alpha*j)).unit()
+
+#N_alpha = 1/(2*(1+np.exp(-2*abs(alpha)^2)))
+logical_0 = (coherent(N, alpha) + coherent(N,-alpha)).unit()
+logical_1 = (coherent(N, alpha*1j) + coherent(N,-alpha*1j)).unit()
+phi = tensor(basis(2,0), logical_0)
 #print(phi)
 #print(res_targ_0)
 # target for map evolution
-phi_targ = tensor(basis(2,0), res_targ_0)
-#print(phi_targ)
+phi_targ = tensor(basis(2,1), logical_0)
 
 
-# In[ ]:
+# In[41]:
 
 
 def plot_wigners(states):
@@ -126,30 +122,32 @@ def plot_wigners(states):
         #a.axis('equal')
 
 states = [phi, phi_targ]
-states = [s.ptrace(1) for s in states]
-plot_wigners(states)
+qubit_states = [s.ptrace(0) for s in states]
+res_states = [s.ptrace(1) for s in states]
+plot_wigners(qubit_states)
+plot_wigners(res_states)
 
 
-# In[ ]:
+# In[60]:
 
 
 # Time slot length
-l_ts = 1e-9
+l_ts = 1e-12
 # Time allowed for the evolution (sec)
-evo_time = 500e-9
+evo_time = 50e-12
 # Number of time slots
 n_ts = int(evo_time//l_ts + 1)
 
 
-# In[ ]:
+# In[61]:
 
 
 # Fidelity error target
-fid_err_targ = 1e-3
+fid_err_targ = 1e-5
 # Maximum iterations for the optisation algorithm
 max_iter = 200
 # Maximum (elapsed) time allowed in seconds
-max_wall_time = 30
+max_wall_time = 60
 # Minimum gradient (sum of gradients squared)
 # as this tends to 0 -> local minima has been found
 min_grad = 1e-20
@@ -158,16 +156,16 @@ p_type = 'RND'
 #Set to None to suppress output files
 #f_ext = "{}_n_ts{}_ptype{}.txt".format(example_name, n_ts, p_type)
 f_ext = None
+
+
+# In[62]:
+
+
 result = cpo.optimize_pulse(drift, ctrls, phi, phi_targ, n_ts, evo_time, 
                 fid_err_targ=fid_err_targ, min_grad=min_grad, 
                 max_iter=max_iter, max_wall_time=max_wall_time, 
                 out_file_ext=f_ext, init_pulse_type=p_type, 
                 log_level=log_level, gen_stats=True)
-
-
-# In[ ]:
-
-
 result.stats.report()
 print("Final evolution\n{}\n".format(result.evo_full_final))
 print("********* Summary *****************")
@@ -179,47 +177,38 @@ print("Number of iterations {}".format(result.num_iter))
 print("Completed in {} HH:MM:SS.US".format(datetime.timedelta(seconds=result.wall_time)))
 
 
-# In[ ]:
+# In[63]:
 
 
-fig1 = plt.figure()
-ax1 = fig1.add_subplot(2, 1, 1)
-ax1.set_title("Initial control amps")
-ax1.set_xlabel("Time")
-ax1.set_ylabel("Control amplitude")
-for i in range(1):
-    ax1.step(result.time, 
-             np.hstack((result.initial_amps[:, i], result.initial_amps[-1, i])), 
-             where='post')
-
-ax2 = fig1.add_subplot(2, 1, 2)
-ax2.set_title("Optimised Control Sequences")
-ax2.set_xlabel("Time")
-ax2.set_ylabel("Control amplitude")
-for i in range(1):
-    ax2.step(result.time, 
-             np.hstack((result.final_amps[:, i], result.final_amps[-1, i])), 
-             where='post')
-fig1.tight_layout()
+states = [phi, phi_targ, result.evo_full_final]
+qubit_states = [s.ptrace(0) for s in states]
+res_states = [s.ptrace(1) for s in states]
+plot_wigners(qubit_states + res_states)
 
 
-# In[ ]:
+# In[64]:
 
 
-res_final = result.evo_full_final.ptrace(1)
-plot_wigner(res_final)
-
-
-# In[ ]:
-
-
-plot_wigner(phi_targ.ptrace(1))
-
-
-# In[ ]:
-
-
-plot_wigner(phi.ptrace(0))
+def plot_control_pulses(result):
+    fig1 = plt.figure()
+    ax1 = fig1.add_subplot(2, 1, 1)
+    ax1.set_title("Initial control amps")
+    ax1.set_xlabel("Time")
+    ax1.set_ylabel("Control amplitude")
+    ax2 = fig1.add_subplot(2, 1, 2)
+    ax2.set_title("Optimised Control Sequences")
+    ax2.set_xlabel("Time")
+    ax2.set_ylabel("Control amplitude")
+    for i in range(len(ctrls)):
+        ax1.step(result.time, 
+                 np.hstack((result.initial_amps[:, i], result.initial_amps[-1, i])), 
+                 where='post')
+        ax2.step(result.time, 
+         np.hstack((result.final_amps[:, i], result.final_amps[-1, i])), 
+         where='post')
+    fig1.tight_layout()
+    
+plot_control_pulses(result)
 
 
 # In[ ]:
