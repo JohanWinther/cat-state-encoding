@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+
 # coding: utf-8
 
 # $ \newcommand{\ket}[1]{\left|{#1}\right\rangle}
@@ -12,7 +12,7 @@
 # $$ \underbrace{(c_0\ket{0} + c_1\ket{1})}_{\text{Qubit}}\underbrace{\ket{0}}_{\text{Cavity}} \rightarrow \ket{0}(c_0\ket{C_0} + c_1 \ket{C_1}) $$
 # where $ \ket{C_0} \propto \ket{-\alpha} + \ket{\alpha} $ is the logical zero and $ \ket{C_1} \propto \ket{-i\alpha} + \ket{i\alpha} $ is the logical one. The method is to optimise such that the six cardinal points on the Bloch sphere realise these cavity cat states and puts the qubit to the ground state.
 
-# In[363]:
+# In[97]:
 
 
 get_ipython().run_line_magic('matplotlib', 'inline')
@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import datetime
 
 
-# In[364]:
+# In[98]:
 
 
 from qutip import identity, sigmax, sigmay, sigmaz, sigmam, sigmap, tensor, projection, create, destroy, displace
@@ -47,7 +47,7 @@ pi = np.pi
 # 
 # $$ \bu\bd = \ket{1}\bra{1} = \sigma_-\sigma_+ $$
 
-# In[365]:
+# In[99]:
 
 
 N = 15 # Hilbert space size
@@ -68,11 +68,12 @@ b  = Sp
 # Hamiltonian - RWA JC, qubit-storage coupling
 w_q = 2*pi*6.2815    # Energy of the 2-level system.
 w_r = 2*pi*8.3056    # Resonator freq
-X_qr= 2*pi*1.97e0    # qubit-storage coupling strength
-K_r   = 0.05#.05    # Kerr res
-K_q   = 0.05#.05    # Kerr qubit
-gamma = 0.05   # Qubit dissipation
-eps = 10*(1+1j)
+X_qr= 2*pi*1.97e-3    # qubit-storage coupling strength
+K_r   = 0.0005#.05    # Kerr res
+K_q   = 0.200#.05    # Kerr qubit 200-300 MHz
+K_r   = 0
+#gamma = 0.05   # Qubit dissipation
+#eps = 10*(1+1j)
 
 H0 = ( w_r*a.dag()*a
     +  w_q*b.dag()*b
@@ -110,7 +111,7 @@ ctrls = [a.dag(), a, b.dag(), b]
 #N_alpha = 1/(2*(1+np.exp(-2*abs(alpha)^2)))
 logical_0 = (coherent(N, alpha) + coherent(N,-alpha)).unit()
 logical_1 = (coherent(N, alpha*1j) + coherent(N,-alpha*1j)).unit()
-phi = tensor(basis(2,1), logical_0)
+phi = tensor(basis(2,1), basis(N,0))
 #print(phi)
 #print(res_targ_0)
 # target for map evolution
@@ -120,7 +121,7 @@ phi_targ = tensor(basis(2,0), logical_1)
 # # System evolution
 # Test to see if the system is setup correctly
 
-# In[366]:
+# In[100]:
 
 
 psi0 = tensor(basis(2,1), basis(N,0))
@@ -136,7 +137,7 @@ ax.set_ylabel('Occupation probability')
 ax.set_title('Vacuum Rabi oscillations');
 
 
-# In[367]:
+# In[101]:
 
 
 def plot_wigners(states):
@@ -153,18 +154,18 @@ plot_wigners(qubit_states)
 plot_wigners(res_states)
 
 
-# In[368]:
+# In[102]:
 
 
 # Time slot length
-l_ts = 1e-6
-# Time allowed for the evolution (sec)
-evo_time = 500e-6
+l_ts = 1e-2
+# Time allowed for the evolution (nanosec)
+evo_time = 500
 # Number of time slots
 n_ts = int(evo_time//l_ts + 1)
 
 
-# In[369]:
+# In[103]:
 
 
 # Fidelity error target
@@ -172,18 +173,18 @@ fid_err_targ = 1e-5
 # Maximum iterations for the optisation algorithm
 max_iter = 200
 # Maximum (elapsed) time allowed in seconds
-max_wall_time = 120
+max_wall_time = 60*1
 # Minimum gradient (sum of gradients squared)
 # as this tends to 0 -> local minima has been found
 min_grad = 1e-20
 # pulse type alternatives: RND|ZERO|LIN|SINE|SQUARE|SAW|TRIANGLE|
-p_type = 'LIN'
+p_type = 'RND'
 #Set to None to suppress output files
 #f_ext = "{}_n_ts{}_ptype{}.txt".format(example_name, n_ts, p_type)
 f_ext = None
 
 
-# In[370]:
+# In[104]:
 
 
 result = cpo.optimize_pulse(drift, ctrls, phi, phi_targ, n_ts, evo_time, 
@@ -202,7 +203,7 @@ print("Number of iterations {}".format(result.num_iter))
 print("Completed in {} HH:MM:SS.US".format(datetime.timedelta(seconds=result.wall_time)))
 
 
-# In[371]:
+# In[ ]:
 
 
 states = [phi, phi_targ, result.evo_full_final]
@@ -211,7 +212,7 @@ res_states = [s.ptrace(1) for s in states]
 plot_wigners(qubit_states + res_states)
 
 
-# In[372]:
+# In[ ]:
 
 
 def plot_control_pulses(result):
@@ -234,10 +235,4 @@ def plot_control_pulses(result):
     fig1.tight_layout()
     
 plot_control_pulses(result)
-
-
-# In[ ]:
-
-
-
 
