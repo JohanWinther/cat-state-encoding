@@ -12,7 +12,7 @@
 # $$ \underbrace{(c_0\ket{0} + c_1\ket{1})}_{\text{Qubit}}\underbrace{\ket{0}}_{\text{Cavity}} \rightarrow \ket{0}(c_0\ket{C_0} + c_1 \ket{C_1}) $$
 # where $ \ket{C_0} \propto \ket{-\alpha} + \ket{\alpha} $ is the logical zero and $ \ket{C_1} \propto \ket{-i\alpha} + \ket{i\alpha} $ is the logical one. The method is to optimise such that the six cardinal points on the Bloch sphere realise these cavity cat states and puts the qubit to the ground state.
 
-# In[313]:
+# In[363]:
 
 
 get_ipython().run_line_magic('matplotlib', 'inline')
@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import datetime
 
 
-# In[314]:
+# In[364]:
 
 
 from qutip import identity, sigmax, sigmay, sigmaz, sigmam, sigmap, tensor, projection, create, destroy, displace
@@ -47,7 +47,7 @@ pi = np.pi
 # 
 # $$ \bu\bd = \ket{1}\bra{1} = \sigma_-\sigma_+ $$
 
-# In[315]:
+# In[365]:
 
 
 N = 15 # Hilbert space size
@@ -120,7 +120,7 @@ phi_targ = tensor(basis(2,0), logical_1)
 # # System evolution
 # Test to see if the system is setup correctly
 
-# In[316]:
+# In[366]:
 
 
 psi0 = tensor(basis(2,1), basis(N,0))
@@ -136,7 +136,7 @@ ax.set_ylabel('Occupation probability')
 ax.set_title('Vacuum Rabi oscillations');
 
 
-# In[317]:
+# In[367]:
 
 
 def plot_wigners(states):
@@ -153,18 +153,18 @@ plot_wigners(qubit_states)
 plot_wigners(res_states)
 
 
-# In[318]:
+# In[368]:
 
 
 # Time slot length
-l_ts = 1e-5
+l_ts = 1e-6
 # Time allowed for the evolution (sec)
-evo_time = 5000e-5
+evo_time = 500e-6
 # Number of time slots
 n_ts = int(evo_time//l_ts + 1)
 
 
-# In[319]:
+# In[369]:
 
 
 # Fidelity error target
@@ -172,7 +172,7 @@ fid_err_targ = 1e-5
 # Maximum iterations for the optisation algorithm
 max_iter = 200
 # Maximum (elapsed) time allowed in seconds
-max_wall_time = 60
+max_wall_time = 120
 # Minimum gradient (sum of gradients squared)
 # as this tends to 0 -> local minima has been found
 min_grad = 1e-20
@@ -183,7 +183,7 @@ p_type = 'LIN'
 f_ext = None
 
 
-# In[320]:
+# In[370]:
 
 
 result = cpo.optimize_pulse(drift, ctrls, phi, phi_targ, n_ts, evo_time, 
@@ -202,7 +202,7 @@ print("Number of iterations {}".format(result.num_iter))
 print("Completed in {} HH:MM:SS.US".format(datetime.timedelta(seconds=result.wall_time)))
 
 
-# In[321]:
+# In[371]:
 
 
 states = [phi, phi_targ, result.evo_full_final]
@@ -211,7 +211,7 @@ res_states = [s.ptrace(1) for s in states]
 plot_wigners(qubit_states + res_states)
 
 
-# In[322]:
+# In[372]:
 
 
 def plot_control_pulses(result):
