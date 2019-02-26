@@ -150,6 +150,20 @@ phi = tensor(basis(2,1), basis(N,0))
 phi_targ = tensor(basis(2,0), basis(N,0))
 
 
+# In[ ]:
+
+
+# Example Hamiltonian and system
+N = 20
+
+wr = 2.0 * 2 * pi      # resonator frequency
+wq = 3.0 * 2 * pi      # qubit frequency
+chi = 0.025 * 2 * pi   # parameter in the dispersive hamiltonian
+
+delta = abs(wr - wq)        # detuning
+g = sqrt(delta * chi)  # coupling strength that is consistent with chi
+
+
 # # System check
 # Some tests to see if the system is setup correctly
 
