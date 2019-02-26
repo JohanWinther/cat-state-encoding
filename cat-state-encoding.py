@@ -12,7 +12,7 @@
 # $$ \underbrace{(c_0\ket{0} + c_1\ket{1})}_{\text{Qubit}}\underbrace{\ket{0}}_{\text{Cavity}} \rightarrow \ket{0}(c_0\ket{C_0} + c_1 \ket{C_1}) $$
 # where $ \ket{C_0} \propto \ket{-\alpha} + \ket{\alpha} $ is the logical zero and $ \ket{C_1} \propto \ket{-i\alpha} + \ket{i\alpha} $ is the logical one. The method is to optimise such that the six cardinal points on the Bloch sphere realise these cavity cat states and puts the qubit to the ground state.
 
-# In[30]:
+# In[1]:
 
 
 get_ipython().run_line_magic('matplotlib', 'inline')
@@ -23,7 +23,7 @@ from matplotlib import animation, rc
 from IPython.display import HTML
 
 
-# In[31]:
+# In[2]:
 
 
 from qutip import *
@@ -46,7 +46,7 @@ from numpy import pi, sqrt
 file_name = 'Test1'
 
 
-# In[32]:
+# In[3]:
 
 
 from time import time
@@ -73,7 +73,7 @@ def printTime(start):
 # 
 # $$ \bu\bd = \ket{1}\bra{1} = \sigma_-\sigma_+ $$
 
-# In[120]:
+# In[4]:
 
 
 N = 20 # Hilbert space size
@@ -165,7 +165,7 @@ phi_targ = tensor(basis(2,0), basis(N,0))
 
 # Is $\Delta \gg g$?
 
-# In[116]:
+# In[5]:
 
 
 delta/g
@@ -173,7 +173,7 @@ delta/g
 
 # ## Time evolution
 
-# In[109]:
+# In[ ]:
 
 
 #psi0 = tensor(basis(2,1), basis(N,0))
@@ -191,7 +191,7 @@ res = mesolve(H0, psi0, tlist, rate, [],options=Odeoptions(nsteps=5000),progress
 
 # ### Expectation values
 
-# In[110]:
+# In[ ]:
 
 
 nc_list = expect(a.dag()*a, res.states)
@@ -208,7 +208,7 @@ fig.tight_layout()
 
 # ### Cavity quadratures
 
-# In[111]:
+# In[ ]:
 
 
 xc_list = expect((a + a.dag()), res.states)
@@ -239,7 +239,7 @@ fig.tight_layout()
 
 # ### Spectrum of resonator and qubit
 
-# In[81]:
+# In[ ]:
 
 
 tlist2 = np.linspace(0, 2000, 10000)
@@ -280,7 +280,7 @@ ax.set_xlabel(r'$(\omega-\omega_r)/\chi$', fontsize=18);
 #ax.set_xlim(-5080,-5070);
 
 
-# In[ ]:
+# In[6]:
 
 
 def plot_wigners(states):
@@ -297,7 +297,7 @@ def plot_wigners(states):
 #plot_wigners(res_states)
 
 
-# In[121]:
+# In[7]:
 
 
 # Time slot length
@@ -308,7 +308,7 @@ evo_time = 500
 n_ts = int(evo_time//l_ts + 1)
 
 
-# In[122]:
+# In[8]:
 
 
 # Fidelity error target
