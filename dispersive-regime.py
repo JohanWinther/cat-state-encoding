@@ -225,13 +225,13 @@ fig.tight_layout()
 tlist = np.linspace(0, 1000*t_fac, 10000)
 
 
-# In[ ]:
+# In[791]:
 
 
 corr_vec = correlation(H, psi0, None, tlist, [], a.dag(), a)
 
 
-# In[ ]:
+# In[796]:
 
 
 fig, ax = plt.subplots(1, 1, sharex=True, figsize=(12,4))
@@ -240,30 +240,31 @@ ax.plot(tlist, np.real(corr_vec), 'r', linewidth=2, label="resonator")
 ax.set_ylabel("correlation", fontsize=16)
 ax.set_xlabel("Time (ns)", fontsize=16)
 ax.legend()
-ax.set_xlim(0,50)
+#ax.set_xlim(0,50)
 fig.tight_layout()
 
 
 # ### Spectrum of the resonator
 
-# In[ ]:
+# In[793]:
 
 
 w, S = spectrum_correlation_fft(tlist, corr_vec)
 
 
-# In[ ]:
+# In[804]:
 
 
 fig, ax = plt.subplots(figsize=(9,3))
 ax.plot(w / (2 * pi), abs(S))
 ax.set_xlabel(r'$\omega$', fontsize=18)
-ax.set_xlim(wr/(2*pi)-.5, wr/(2*pi)+.5);
+#ax.set_xlim(wr/(2*pi)-.5, wr/(2*pi)+.5);
+ax.set_xlim(-1.26, -1.225);
 
 
 # Here we can see how the resonator peak is split and shiften up and down due to the superposition of 0 and 1 states of the qubit! We can also verify that the splitting is exactly $2\chi$, as expected:
 
-# In[ ]:
+# In[799]:
 
 
 fig, ax = plt.subplots(figsize=(9,3))

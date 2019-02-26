@@ -73,7 +73,7 @@ def printTime(start):
 # 
 # $$ \bu\bd = \ket{1}\bra{1} = \sigma_-\sigma_+ $$
 
-# In[33]:
+# In[120]:
 
 
 N = 20 # Hilbert space size
@@ -84,8 +84,11 @@ Sy = sigmay()
 Sz = sigmaz()
 Si = identity(2)
 Ri = identity(N)
+I  = tensor(Si,Ri)
+Sx = tensor(sigmax(), Ri)
+Sz = tensor(sigmaz(), Ri)
 Sm = tensor(sigmam(), Ri)
-Sp = tensor(sigmap(), Ri) 
+Sp = tensor(sigmap(), Ri)
 a  = tensor(Si, destroy(N))
 b  = Sp
 
@@ -98,6 +101,10 @@ chi_qr= 2*pi*1.97e-3     # qubit-storage coupling strength
 K_r   = 2*pi*0.45e-3   # Kerr res
 K_q   = 2*pi*297e-3    # Kerr qubit 200-300 MHz
 
+#w_r = 2.0 * 2 * pi      # resonator frequency
+#w_q = 3.0 * 2 * pi      # qubit frequency
+#chi_qr = 0.025 * 2 * pi   # parameter in the dispersive hamiltonian
+
 #Damping rate:
 gamma = 2*pi*2e-6
 use_dispersive = True
@@ -108,13 +115,16 @@ g = sqrt(delta * chi_qr)  # coupling strength that is consistent with chi
 
 
 
-H_occ = w_r*a.dag()*a + w_q*b.dag()*b
+#H_occ = w_r*a.dag()*a + w_q*b.dag()*b
+H_occ = w_r * (a.dag() * a + I/2.0) + (w_q / 2.0) * Sz
+
 
 if use_dispersive:
-    H_coup = - chi_qr * a.dag()*a * b.dag()*b
+    #H_coup = - chi_qr * a.dag()*a * b.dag()*b
+    H_coup =  chi_qr * (a.dag() * a + I/2) * Sz
 else:
-    H_coup = g * (a.dag() * b + a * b.dag())
-
+    #H_coup = g * (a.dag() * b + a * b.dag())
+    H_coup = g * (a.dag() + a) * Sx
 if use_kerr:
     H_kerr = - K_r/2 * a.dag()**2 * a**2 - K_q/2 * b.dag()**2 * b**2
 else:
@@ -122,8 +132,8 @@ else:
 
 H0 = H_occ + H_coup + H_kerr
 
-
-L0 = liouvillian(H0, [np.sqrt(gamma)*b])
+decay = [np.sqrt(gamma)*b]
+L0 = liouvillian(H0, decay)
 
 #sigma X control
 #LC_x = liouvillian(Sx)
@@ -136,7 +146,7 @@ L0 = liouvillian(H0, [np.sqrt(gamma)*b])
 drift = L0
 #Controls - 
 
-ctrls = [a.dag(), a, b.dag(), b]
+ctrls = [liouvillian(b.dag(), decay)]
 
 
 # Starting state
@@ -150,26 +160,12 @@ phi = tensor(basis(2,1), basis(N,0))
 phi_targ = tensor(basis(2,0), basis(N,0))
 
 
-# In[ ]:
-
-
-# Example Hamiltonian and system
-N = 20
-
-wr = 2.0 * 2 * pi      # resonator frequency
-wq = 3.0 * 2 * pi      # qubit frequency
-chi = 0.025 * 2 * pi   # parameter in the dispersive hamiltonian
-
-delta = abs(wr - wq)        # detuning
-g = sqrt(delta * chi)  # coupling strength that is consistent with chi
-
-
 # # System check
 # Some tests to see if the system is setup correctly
 
 # Is $\Delta \gg g$?
 
-# In[34]:
+# In[116]:
 
 
 delta/g
@@ -177,25 +173,25 @@ delta/g
 
 # ## Time evolution
 
-# In[35]:
+# In[109]:
 
 
 #psi0 = tensor(basis(2,1), basis(N,0))
 psi0 = tensor((basis(2,0)+basis(2,1).unit()), coherent(N,2))
 #psi0 = tensor(basis(2,0), basis(N,4))
-t_tot = 10
-tlist = np.linspace(0,t_tot,10)
+t_tot = 1000
+tlist = np.linspace(0,t_tot,1000)
 decay = False
 if decay:
     rate = [np.sqrt(gamma) * b]
 else:
     rate = []
-res = mesolve(H0, psi0, tlist, rate, [],options=Odeoptions(nsteps=10000),progress_bar=True)
+res = mesolve(H0, psi0, tlist, rate, [],options=Odeoptions(nsteps=5000),progress_bar=True)
 
 
 # ### Expectation values
 
-# In[36]:
+# In[110]:
 
 
 nc_list = expect(a.dag()*a, res.states)
@@ -212,7 +208,7 @@ fig.tight_layout()
 
 # ### Cavity quadratures
 
-# In[37]:
+# In[111]:
 
 
 xc_list = expect((a + a.dag()), res.states)
@@ -243,10 +239,10 @@ fig.tight_layout()
 
 # ### Spectrum of resonator and qubit
 
-# In[199]:
+# In[81]:
 
 
-tlist2 = np.linspace(0, 1000, 1000)
+tlist2 = np.linspace(0, 2000, 10000)
 start = time()
 corr_vec = correlation_2op_2t(H0, psi0, None, tlist2, [], a.dag(), a, solver='me',options=Odeoptions(nsteps=5000))
 elapsed = printTime(start)
@@ -254,13 +250,13 @@ print(elapsed)
 w, S = spectrum_correlation_fft(tlist2, corr_vec)
 
 
-# In[201]:
+# In[ ]:
 
 
 print(elapsed)
 
 
-# In[205]:
+# In[ ]:
 
 
 fig, ax = plt.subplots(1, 1, sharex=True, figsize=(12,4))
@@ -284,12 +280,6 @@ ax.set_xlabel(r'$(\omega-\omega_r)/\chi$', fontsize=18);
 #ax.set_xlim(-5080,-5070);
 
 
-# In[210]:
-
-
-plot_animation(plot_setup, plot_result, result)
-
-
 # In[ ]:
 
 
@@ -307,7 +297,7 @@ def plot_wigners(states):
 #plot_wigners(res_states)
 
 
-# In[ ]:
+# In[121]:
 
 
 # Time slot length
@@ -318,7 +308,7 @@ evo_time = 500
 n_ts = int(evo_time//l_ts + 1)
 
 
-# In[ ]:
+# In[122]:
 
 
 # Fidelity error target
