@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 # coding: utf-8
 
 # $ \newcommand{\ket}[1]{\left|{#1}\right\rangle}
@@ -12,33 +12,59 @@
 # $$ \underbrace{(c_0\ket{0} + c_1\ket{1})}_{\text{Qubit}}\underbrace{\ket{0}}_{\text{Cavity}} \rightarrow \ket{0}(c_0\ket{C_0} + c_1 \ket{C_1}) $$
 # where $ \ket{C_0} \propto \ket{-\alpha} + \ket{\alpha} $ is the logical zero and $ \ket{C_1} \propto \ket{-i\alpha} + \ket{i\alpha} $ is the logical one. The method is to optimise such that the six cardinal points on the Bloch sphere realise these cavity cat states and puts the qubit to the ground state.
 
-# In[97]:
+# In[30]:
 
 
 get_ipython().run_line_magic('matplotlib', 'inline')
 import numpy as np
 import matplotlib.pyplot as plt
 import datetime
+from matplotlib import animation, rc
+from IPython.display import HTML
 
 
-# In[98]:
+# In[31]:
 
 
-from qutip import identity, sigmax, sigmay, sigmaz, sigmam, sigmap, tensor, projection, create, destroy, displace
-from qutip import Qobj, basis, coherent, mesolve, fock
+from qutip import *
+#from qutip import identity, sigmax, sigmay, sigmaz, sigmam, sigmap, tensor, projection, create, destroy, displace
+#from qutip import Qobj, basis, coherent, mesolve, fock
+#from qutip import expect
 from qutip.superoperator import liouvillian, sprepost
 from qutip.qip import hadamard_transform
 from qutip.visualization import plot_wigner, plot_wigner_fock_distribution
+from qutip.ipynbtools import plot_animation
 import qutip.logging_utils as logging
+#from qutip import Bloch
 logger = logging.get_logger()
 #Set this to None or logging.WARN for 'quiet' execution
 #log_level = logging.INFO
 log_level = logging.WARN
 #QuTiP control modules
 import qutip.control.pulseoptim as cpo
-
+from numpy import pi, sqrt
 file_name = 'Test1'
-pi = np.pi
+
+
+# In[32]:
+
+
+from time import time
+
+def printTime(start):
+    end = time()
+    duration = end - start
+    if duration < 60:
+        return "used: " + str(round(duration, 2)) + "s."
+    else:
+        mins = int(duration / 60)
+        secs = round(duration % 60, 2)
+        if mins < 60:
+            return "used: " + str(mins) + "m " + str(secs) + "s."
+        else:
+            hours = int(duration / 3600)
+            mins = mins % 60
+            return "used: " + str(hours) + "h " + str(mins) + "m " + str(secs) + "s."
 
 
 # # Physics
@@ -47,11 +73,11 @@ pi = np.pi
 # 
 # $$ \bu\bd = \ket{1}\bra{1} = \sigma_-\sigma_+ $$
 
-# In[99]:
+# In[33]:
 
 
-N = 15 # Hilbert space size
-alpha = 2
+N = 20 # Hilbert space size
+alpha = sqrt(4)
 
 Sx = sigmax()
 Sy = sigmay()
@@ -66,28 +92,38 @@ b  = Sp
 
 
 # Hamiltonian - RWA JC, qubit-storage coupling
-w_q = 2*pi*6.2815    # Energy of the 2-level system.
-w_r = 2*pi*8.3056    # Resonator freq
-X_qr= 2*pi*1.97e-3    # qubit-storage coupling strength
-K_r   = 0.0005#.05    # Kerr res
-K_q   = 0.200#.05    # Kerr qubit 200-300 MHz
-K_r   = 0
-#gamma = 0.05   # Qubit dissipation
-#eps = 10*(1+1j)
+w_q = 2*pi*6.2815      # Energy of the 2-level system (GHz)
+w_r = 2*pi*8.3056      # Resonator freq
+chi_qr= 2*pi*1.97e-3     # qubit-storage coupling strength
+K_r   = 2*pi*0.45e-3   # Kerr res
+K_q   = 2*pi*297e-3    # Kerr qubit 200-300 MHz
 
-H0 = ( w_r*a.dag()*a
-    +  w_q*b.dag()*b
-    - X_qr * a.dag()*a * b.dag()*b
-    - K_r/2 * a.dag()**2 * a**2 - K_q/2 * b.dag()**2 * b**2  )
-     #+ eps*a.dag() + np.conj(eps)*a + eps*b.dag() + np.conj(eps)*b)
-
-#H0 = w_r * a.dag() * a + w_q * b.dag() * b + X_qr * (a.dag() * b + a * b.dag())
-#H0 = w_r * a.dag() * a + w_q * Sm.dag() * Sm + X_qr * (a.dag()*a * b.dag()*b)
-
-#Amplitude damping
 #Damping rate:
-#gamma = 0.1
-#L0 = liouvillian(H, [np.sqrt(gamma)*Sm])
+gamma = 2*pi*2e-6
+use_dispersive = True
+use_kerr = False
+
+delta = abs(w_r - w_q)    # detuning
+g = sqrt(delta * chi_qr)  # coupling strength that is consistent with chi
+
+
+
+H_occ = w_r*a.dag()*a + w_q*b.dag()*b
+
+if use_dispersive:
+    H_coup = - chi_qr * a.dag()*a * b.dag()*b
+else:
+    H_coup = g * (a.dag() * b + a * b.dag())
+
+if use_kerr:
+    H_kerr = - K_r/2 * a.dag()**2 * a**2 - K_q/2 * b.dag()**2 * b**2
+else:
+    H_kerr = 0
+
+H0 = H_occ + H_coup + H_kerr
+
+
+L0 = liouvillian(H0, [np.sqrt(gamma)*b])
 
 #sigma X control
 #LC_x = liouvillian(Sx)
@@ -97,17 +133,13 @@ H0 = ( w_r*a.dag()*a
 #LC_z = liouvillian(Sz)
 
 #Drift
-#drift = L0
-drift = H0
+drift = L0
 #Controls - 
 
 ctrls = [a.dag(), a, b.dag(), b]
 
-#ctrls = [tensor(Sx,Ri), tensor(Sy, Ri), tensor(Sz, Ri), tensor(Si, a.dag()), tensor(Si, a)]
 
 # Starting state
-
-
 #N_alpha = 1/(2*(1+np.exp(-2*abs(alpha)^2)))
 logical_0 = (coherent(N, alpha) + coherent(N,-alpha)).unit()
 logical_1 = (coherent(N, alpha*1j) + coherent(N,-alpha*1j)).unit()
@@ -115,29 +147,136 @@ phi = tensor(basis(2,1), basis(N,0))
 #print(phi)
 #print(res_targ_0)
 # target for map evolution
-phi_targ = tensor(basis(2,0), logical_1)
+phi_targ = tensor(basis(2,0), basis(N,0))
 
 
-# # System evolution
-# Test to see if the system is setup correctly
+# # System check
+# Some tests to see if the system is setup correctly
 
-# In[100]:
+# Is $\Delta \gg g$?
+
+# In[34]:
 
 
-psi0 = tensor(basis(2,1), basis(N,0))
-tlist = np.linspace(0,1,100)
-rate = np.sqrt(10*gamma) * b
-output = mesolve(H0, psi0, tlist, [rate], [a.dag()*a, b.dag()*b])
-fig, ax = plt.subplots(figsize=(8,5))
-ax.plot(tlist, output.expect[0], label="Cavity")
-ax.plot(tlist, output.expect[1], label="Atom excited state")
+delta/g
+
+
+# ## Time evolution
+
+# In[35]:
+
+
+#psi0 = tensor(basis(2,1), basis(N,0))
+psi0 = tensor((basis(2,0)+basis(2,1).unit()), coherent(N,2))
+#psi0 = tensor(basis(2,0), basis(N,4))
+t_tot = 10
+tlist = np.linspace(0,t_tot,10)
+decay = False
+if decay:
+    rate = [np.sqrt(gamma) * b]
+else:
+    rate = []
+res = mesolve(H0, psi0, tlist, rate, [],options=Odeoptions(nsteps=10000),progress_bar=True)
+
+
+# ### Expectation values
+
+# In[36]:
+
+
+nc_list = expect(a.dag()*a, res.states)
+nq_list = expect(b.dag()*b, res.states)
+
+fig, ax = plt.subplots(sharex=True,figsize=(8,5))
+ax.plot(tlist, nc_list, label="Cavity")
+ax.plot(tlist, nq_list, label="Atom excited state")
 ax.legend()
-ax.set_xlabel('Time')
-ax.set_ylabel('Occupation probability')
-ax.set_title('Vacuum Rabi oscillations');
+ax.set_xlabel('Time (ns)')
+ax.set_ylabel('Occupation probability');
+fig.tight_layout()
 
 
-# In[101]:
+# ### Cavity quadratures
+
+# In[37]:
+
+
+xc_list = expect((a + a.dag()), res.states)
+yc_list = expect(-1j*(a - a.dag()), res.states)
+
+fig, [ax,ax2] = plt.subplots(1,2,sharex=False, figsize=(12,4))
+
+ax.plot(tlist, xc_list, 'r', linewidth=2, label="q")
+ax.plot(tlist, yc_list, 'b', linewidth=2, label="p")
+ax.set_xlabel("Time (ns)", fontsize=16)
+ax.legend()
+
+ax2.plot(tlist, xc_list, 'r', linewidth=2, label="q")
+ax2.plot(tlist, yc_list, 'b', linewidth=2, label="p")
+ax2.set_xlabel("Time (ns)", fontsize=16)
+ax2.set_xlim(0,250)
+ax2.legend()
+fig.tight_layout()
+
+fig, ax = plt.subplots(1,1,sharex=False, figsize=(12,4))
+
+ax.plot(xc_list,yc_list, 'k.', linewidth=2, label="q")
+ax.set_xlabel("q", fontsize=16)
+ax.set_ylabel("p", fontsize=16)
+ax.axis('equal')
+fig.tight_layout()
+
+
+# ### Spectrum of resonator and qubit
+
+# In[199]:
+
+
+tlist2 = np.linspace(0, 1000, 1000)
+start = time()
+corr_vec = correlation_2op_2t(H0, psi0, None, tlist2, [], a.dag(), a, solver='me',options=Odeoptions(nsteps=5000))
+elapsed = printTime(start)
+print(elapsed)
+w, S = spectrum_correlation_fft(tlist2, corr_vec)
+
+
+# In[201]:
+
+
+print(elapsed)
+
+
+# In[205]:
+
+
+fig, ax = plt.subplots(1, 1, sharex=True, figsize=(12,4))
+
+ax.plot(tlist2, np.real(corr_vec), 'r', linewidth=2, label="resonator")
+ax.set_ylabel("correlation", fontsize=16)
+ax.set_xlabel("Time (ns)", fontsize=16)
+ax.legend()
+#ax.set_xlim(0,100)
+fig.tight_layout()
+
+fig, ax = plt.subplots(figsize=(9,3))
+ax.plot(w / (2 * pi), abs(S))
+ax.set_xlabel(r'$\omega$', fontsize=18)
+ax.set_xlim(0.3,0.35)
+#ax.set_xlim(w_r/(2*pi)-.5, w_r/(2*pi)+.5);
+
+fig, ax = plt.subplots(figsize=(9,3))
+ax.plot((w-w_r)/chi_qr, abs(S))
+ax.set_xlabel(r'$(\omega-\omega_r)/\chi$', fontsize=18);
+#ax.set_xlim(-5080,-5070);
+
+
+# In[210]:
+
+
+plot_animation(plot_setup, plot_result, result)
+
+
+# In[ ]:
 
 
 def plot_wigners(states):
@@ -147,29 +286,29 @@ def plot_wigners(states):
         plot_wigner_fock_distribution(state,)#fig=f,ax = a)
         #a.axis('equal')
 
-states = [phi, phi_targ]
-qubit_states = [s.ptrace(0) for s in states]
-res_states = [s.ptrace(1) for s in states]
-plot_wigners(qubit_states)
-plot_wigners(res_states)
+#states = [phi, phi_targ]
+#qubit_states = [s.ptrace(0) for s in states]
+#res_states = [s.ptrace(1) for s in states]
+#plot_wigners(qubit_states)
+#plot_wigners(res_states)
 
 
-# In[102]:
+# In[ ]:
 
 
 # Time slot length
-l_ts = 1e-2
+l_ts = 1
 # Time allowed for the evolution (nanosec)
 evo_time = 500
 # Number of time slots
 n_ts = int(evo_time//l_ts + 1)
 
 
-# In[103]:
+# In[ ]:
 
 
 # Fidelity error target
-fid_err_targ = 1e-5
+fid_err_targ = 1e-3
 # Maximum iterations for the optisation algorithm
 max_iter = 200
 # Maximum (elapsed) time allowed in seconds
@@ -184,7 +323,7 @@ p_type = 'RND'
 f_ext = None
 
 
-# In[104]:
+# In[ ]:
 
 
 result = cpo.optimize_pulse(drift, ctrls, phi, phi_targ, n_ts, evo_time, 
@@ -235,4 +374,10 @@ def plot_control_pulses(result):
     fig1.tight_layout()
     
 plot_control_pulses(result)
+
+
+# In[ ]:
+
+
+
 
