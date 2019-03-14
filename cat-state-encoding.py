@@ -73,7 +73,7 @@ def printTime(start):
 # 
 # $$ \bu\bd = \ket{1}\bra{1} = \sigma_-\sigma_+ $$
 
-# In[1323]:
+# In[152]:
 
 
 N = 14 # Hilbert space size
@@ -99,7 +99,8 @@ def hamiltonian(w_q, w_r, chi_qr, use_dispersive = True, use_kerr = False):
     #chi_qr= 2*pi*1.97e-3     # qubit-storage coupling strength
     K_r   = 2*pi*0.45e-3   # Kerr res
     K_q   = 2*pi*297e-3    # Kerr qubit 200-300 MHz
-
+    K_r   = 10
+    K_q   = 1
     #w_r = 2.0 * 2 * pi      # resonator frequency
     #w_q = 3.0 * 2 * pi      # qubit frequency
     #chi_qr = 0.025 * 2 * pi   # parameter in the dispersive hamiltonian
@@ -149,18 +150,17 @@ w_r = 1.0           # In units of w_q
 
 #chi_qr= 2*pi*1.97e-3     # qubit-storage coupling strength
 chi_qr = 2.37189366e-4
+chi_qr = 1
 #chi_qr = 0
 
-H0 = hamiltonian(w_q, w_r, chi_qr, use_dispersive=True, use_kerr=True)
+H0 = hamiltonian(w_q, w_r, chi_qr, use_dispersive=False, use_kerr=True)
 #H1 = hamiltonian(w_q, w_r, chi_qr, use_dispersive=False, use_kerr=False)
 
 drift = H0
 #Controls - 
 
 #ctrls = [liouvillian(Sx), liouvillian(Sz)]
-#ctrls = [b.dag(), b]
-ctrls = [Sx, Sz, d]
-ctrls = [b, b.dag(), a.dag(), a]
+ctrls = [b.dag(), b, a.dag(), a]
 
 #Damping rate:
 gamma = 2*pi*2e-6 * w_r_true
@@ -171,16 +171,15 @@ gamma = 2*pi*2e-6 * w_r_true
 #logical_1 = (coherent(N, alpha*1j) + coherent(N,-alpha*1j)).unit()
 
 # Start state
-phi = tensor(basis(2,1), coherent(N,0))
+phi = tensor((0*basis(2,0) + 1*basis(2,1)).unit(), coherent(N,0))
 # Target state
-phi_targ = tensor(basis(2,0), (coherent(N,1j*alpha)).unit())
-#phi_targ = phi
+phi_targ = tensor(basis(2,0), (coherent(N,-alpha) + coherent(N,alpha)).unit())
 
 
 # # System check
 # Some tests to see if the system is setup correctly
 
-# In[1324]:
+# In[153]:
 
 
 check_systems = False
@@ -190,7 +189,7 @@ check_systems = False
 
 # ## Time evolution
 
-# In[1325]:
+# In[154]:
 
 
 if check_systems:
@@ -212,7 +211,7 @@ if check_systems:
 
 # ### Expectation values
 
-# In[1326]:
+# In[155]:
 
 
 if check_systems:
@@ -230,7 +229,7 @@ if check_systems:
 
 # ### Cavity quadratures
 
-# In[1327]:
+# In[156]:
 
 
 if check_systems:
@@ -291,7 +290,7 @@ if check_systems:
 # ax.set_xlabel(r'$(\omega-\omega_r)/\chi$', fontsize=18);
 # #ax.set_xlim(-5080,-5070);
 
-# In[1328]:
+# In[157]:
 
 
 def plot_states(states, is_qubit = False):
@@ -315,20 +314,20 @@ plot_states(qubit_states, True)
 plot_states(res_states)
 
 
-# In[1329]:
+# In[190]:
 
 
 # Time slot length
 l_ts = 1
 # Time allowed for the evolution (nanosec)
 evo_time = 1 * w_r_true
-evo_time = 2
+evo_time = 1
 # Number of time slots
 n_ts = int(evo_time//l_ts + 1)
-n_ts = 50
+n_ts = 20
 
 
-# In[1330]:
+# In[191]:
 
 
 # Fidelity error target
@@ -347,7 +346,7 @@ p_type = 'ZERO'
 f_ext = None
 
 
-# In[1331]:
+# In[192]:
 
 
 print("Initial fidelity: {}".format(fidelity((phi),(phi_targ))))
@@ -369,7 +368,7 @@ print("Number of iterations {}".format(result.num_iter))
 print("Completed in {} HH:MM:SS.US".format(datetime.timedelta(seconds=result.wall_time)))
 
 
-# In[1332]:
+# In[193]:
 
 
 states = [phi, phi_targ, result.evo_full_final]
@@ -379,7 +378,7 @@ plot_states(qubit_states, True)
 plot_states(res_states)
 
 
-# In[1333]:
+# In[194]:
 
 
 def plot_control_pulses(result):
