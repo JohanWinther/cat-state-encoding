@@ -89,12 +89,6 @@ L = 3
 α = 2
 
 
-# In[371]:
-
-
-qutip.visualization.plot_wigner(coherent(100,α)+coherent(100,-α))
-
-
 # # Plotting functions
 
 # In[334]:
