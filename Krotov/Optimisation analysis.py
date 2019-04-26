@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[61]:
+# In[289]:
 
 
 import numpy as np
@@ -10,6 +10,7 @@ import krotov
 import qutip
 import scipy
 import os
+import copy
 π = np.pi
 sqrt = np.sqrt
 basis = qutip.basis
@@ -17,14 +18,14 @@ tensor = qutip.tensor
 coherent = qutip.coherent
 
 
-# In[55]:
+# In[290]:
 
 
 def plot_fid_convergence(ax, info_vals, T):
     ax.plot3D(range(0,len(info_vals)), [T]*len(info_vals), info_vals)
 
 
-# In[62]:
+# In[291]:
 
 
 L = 3
@@ -45,6 +46,9 @@ I = Si
 ω_r = 8.3056 * 2 * π      # resonator frequency
 ω_q = 6.2815 * 2 * π      # qubit frequency
 K_q   = -2*π*297e-3    # Kerr qubit 200-300 MHz
+
+ω_ef = ω_q + K_q
+ω_gf = ω_q + K_q/2
 use_rotating = True
 def hamiltonian(ω=1.0, ampl0=1, use_rotating=True, pulses=None, tlist=None):
     """Two-level-system Hamiltonian
@@ -55,7 +59,7 @@ def hamiltonian(ω=1.0, ampl0=1, use_rotating=True, pulses=None, tlist=None):
     """
     
     K_r   = 2*π*0.45e-3   # Kerr res
-    K_q   = -2*π*297e-3    # Kerr qubit 200-300 MHz
+    #K_q   = -2*π*297e-3    # Kerr qubit 200-300 MHz
     ω_r = 8.3056 * 2 * π      # resonator frequency
     ω_q = 6.2815 * 2 * π      # qubit frequency
     χ = 0.025 * 2 * π   # parameter in the dispersive hamiltonian
@@ -74,7 +78,7 @@ def hamiltonian(ω=1.0, ampl0=1, use_rotating=True, pulses=None, tlist=None):
     
     
     use_dispersive = True
-    use_kerr = False
+    use_kerr = True
     #if use_dispersive:
     #    #H_coup = - chi_qr * a.dag()*a * b.dag()*b
     #    H_coup =  χ * (a.dag()*a + I/2) * σ_z
@@ -140,10 +144,11 @@ def hamiltonian(ω=1.0, ampl0=1, use_rotating=True, pulses=None, tlist=None):
         return [H_d, [H_q, ϵ_q], [H_qc, ϵ_qc]]#, [H_rr, ϵ_rr], [H_ri, ϵ_ri]]
 
 
-# In[63]:
+# In[347]:
 
 
 def state_rot(ϕ, T):
+    ϕ = copy.deepcopy(ϕ)
     if L == 3:
         rot_evo = qutip.Qobj([[1, 0, 0],[0, np.exp(-1j * ω_q * T), 0],[0, 0, 0]])
     else:
@@ -153,18 +158,21 @@ def state_rot(ϕ, T):
 
 H = hamiltonian(ampl0=1, use_rotating=True)
 ϕ = [[ basis(L,0), (basis(L,0)-basis(L,1)).unit() ]]
+ϕ = [[ basis(L,0), basis(L,1) ]]
 
-if use_rotating:
-    objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in state_rot(ϕ, T)]
-else:
-    objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in ϕ]
+def get_objectives(T=None):
+    if use_rotating:
+        objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in state_rot(ϕ, T)]
+    else:
+        objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in ϕ]
+    return objectives
 
 
-# In[83]:
+# In[348]:
 
 
 def plot_population(n, tlist):
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(15,4))
     leg = []
     for i in range(len(n)):
         ax.plot(tlist, n[i], label=str(i))
@@ -191,7 +199,7 @@ def plot_pulse(pulse, tlist):
     ax.set_xlabel('Time (ns)')
     ax.set_ylabel('Pulse amplitude')
     plt.show(fig)
-def plot_spectrum(pulse, tlist, mark_freq=None, pos=1):
+def plot_spectrum(pulse, tlist, mark_freq=None, pos=1, xlim=None, mark_color=['k','k','k']):
     samples = len(tlist)
     sample_interval = tlist[-1]/samples
     time = np.linspace(0, samples*sample_interval, samples)
@@ -210,15 +218,54 @@ def plot_spectrum(pulse, tlist, mark_freq=None, pos=1):
             plt.xlim(0, 2*mf[0])
         elif pos==-1:
             plt.xlim(-2*mf[0], 0)
-        [plt.axvline(x=pos*m_f, ymin=0, ymax=1, color='k', linestyle='--', linewidth=1) for m_f in mf]
+        elif xlim is not None:
+            plt.xlim(xlim[0]/(2*π), xlim[1]/(2*π))
+        [plt.axvline(x=m_f, ymin=0, ymax=1, color=col, linestyle='--', linewidth=1) for (m_f, col) in zip(mf,mark_color)]
     plt.title('Qubit pulse spectrum')
     plt.xlabel('f (GHz)');
+    
+def plot_cardinal(ψ):
+    bl = qutip.Bloch()
+    bl.vector_color = ['r','g','b','g','b','r']
+    [bl.add_states(to_two_level(ϕ), 'vector') for ϕ in ψ]
+    bl.show()
+def to_two_level(state):
+    if state.type is 'oper':
+        return qutip.Qobj(state[0:2,0:2])
+    else:
+        return qutip.Qobj(state[0:2])
+def plot_evolution(dyn, steps=1):
+    for d in dyn:
+        points = [to_two_level(s) for s in d.states[0:-1:steps]]
+        bl = qutip.Bloch()
+        bl.vector_color = 'r'
+        bl.point_color = 'r'
+        bl.point_marker = 'o'
+        bl.add_states(points, 'point')
+        bl.show()
+        bl = qutip.Bloch()
+        bl.vector_color = 'r'
+        bl.point_color = 'r'
+        bl.point_marker = 'o'
+        bl.view = [bl.view[0], 80]
+        bl.add_states(points, 'point')
+        bl.show()
+def plot_matrix_final_target(target_state, final_state, xlabels, ylabels, el=30, az=135):
+    fig, ax = qutip.visualization.matrix_histogram(final_state * target_state.dag(), xlabels, ylabels, colorbar=False, limits=[-1,1])
+    qutip.visualization.matrix_histogram(proj(target_state), xlabels, ylabels, colorbar=False, limits=[-1,1], fig=fig, ax=ax)
+    facecolors = np.zeros((6*L**2,4))*0.1
+    edgecolors = np.tile([0,0,0,0.9], (6*L**2,1))
+    ax.get_children()[2].set_facecolors(facecolors)
+    ax.get_children()[2].set_edgecolors(edgecolors)
+    ax.set_zticks(np.arange(-1,1,0.25))
+    ax.view_init(elev=el, azim=az)
+    return (fig, ax)
 
 
-# In[174]:
+# In[353]:
 
 
-results = [(krotov.result.Result.load(os.path.join(os.getcwd(),'results',file), objectives=objectives), float(file.split('_')[-1][:-4])) for file in os.listdir('results') if file[-4:]=='.dat' and file.find('_20.')>0]
+results = [(krotov.result.Result.load(os.path.join(os.getcwd(),'results',file), objectives=get_objectives(T=float(file.split('_')[-1][:-4]))), float(file.split('_')[-1][:-4])) for file in [os.listdir('results')[-1]] if file[-4:]=='.dat']
 
 fig = plt.figure()
 ax = plt.axes(projection='3d')
@@ -237,24 +284,47 @@ for (r, T) in results:
     print('F = {}'.format(r.info_vals[-1]))
 
 
-# In[175]:
+# In[354]:
 
 
 T_q = (2*π)/ω_q
 steps2 = len(results[0][0].tlist)*1000
 for (r,_) in results:
     tlist = r.tlist
-    for c in [r.optimized_controls]:
-        plot_pulse(c[0], tlist)
-        plot_pulse(c[1], tlist)
-        tlist2 = np.linspace(0, tlist[-1], steps2)
-        Ω = c[0]+1j*c[1]
-        Ω = np.interp(tlist2, tlist, Ω)
-        pulses_lab = [Ω*np.exp(1j*ω_q*tlist2), np.conj(Ω)*np.exp(-1j*ω_q*tlist2)]
-        plot_pulse(pulses_lab[0], tlist2)
-        plot_pulse(pulses_lab[1], tlist2)
-        plot_spectrum(pulses_lab[0], tlist2, mark_freq=[ω_q, ω_q + K_q, ω_q - K_q], pos=1)
-        plot_spectrum(pulses_lab[1], tlist2, mark_freq=[ω_q, ω_q + K_q, ω_q - K_q], pos=-1)
+    #opt_dynamics = [ob.mesolve(tlist, progress_bar=True) for ob in r.objectives]
+    #qubit_occupation(opt_dynamics[0])
+    
+    c = r.optimized_controls
+    tlist2 = np.linspace(0, tlist[-1], steps2)
+    Ω = c[0]+1j*c[1]
+    Ω = np.interp(tlist2, tlist, Ω)
+    pulses_lab = [Ω*np.exp(1j*ω_q*tlist2), np.conj(Ω)*np.exp(-1j*ω_q*tlist2)]
     opt_dynamics = [ob.mesolve(tlist, progress_bar=True) for ob in r.optimized_objectives]
+    plot_pulse(r.guess_controls[0], tlist)
+    plot_pulse(r.guess_controls[1], tlist)
+    plot_pulse(c[0], tlist)
+    plot_pulse(c[1], tlist)
+    plot_pulse(pulses_lab[0], tlist2)
+    plot_pulse(pulses_lab[1], tlist2)
     qubit_occupation(opt_dynamics[0])
+    plot_spectrum(pulses_lab[0], tlist2, mark_freq=[ω_q, ω_ef, ω_gf],mark_color=['r','g','b'], pos=0, xlim=[ω_q*0.9, ω_q*1.1])
+    #plot_spectrum(pulses_lab[1], tlist2, mark_freq=[ω_q, ω_ef, ω_gf], pos=0, xlim=[-ω_q*0.95, -ω_q*1.05])
+    #H_lab = hamiltonian(ampl0=1, use_rotating=False, pulses=pulses_lab)
+    #objectives_lab = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H_lab) for ψ in ϕ]
+    
+    
+
+
+# In[356]:
+
+
+xlabels = ['$|0\\rangle$','$|1\\rangle$','$|2\\rangle$']
+ylabels = ['$\\langle 0|$','$\\langle 1|$','$\\langle 2|$']
+final_state = opt_dynamics[0].states[-1]
+#target_state = get_objectives(tlist[-1])[0].target
+target_state = results[0][0].objectives[0].target
+plot_matrix_final_target(-target_state, final_state, xlabels, ylabels, el=45, az=150)
+plot_matrix_final_target(-target_state, final_state, xlabels, ylabels, el=10, az=150)
+plot_cardinal([target_state, final_state])
+plot_evolution(opt_dynamics)
 
