@@ -1,2 +1,4 @@
 **/*.ipynb_checkpoints
+results
+old_results
 .dat

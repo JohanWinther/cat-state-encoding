@@ -3,7 +3,7 @@
 
 # # Optimization of a State-to-State Transfer in a Two-Level-System
 
-# In[1295]:
+# In[566]:
 
 
 # NBVAL_IGNORE_OUTPUT
@@ -84,7 +84,7 @@ coherent = qutip.coherent
 # states. For now, we initialize the control
 # field as constant.
 
-# In[849]:
+# In[319]:
 
 
 L = 3
@@ -92,7 +92,7 @@ L = 3
 
 # # Plotting functions
 
-# In[1043]:
+# In[508]:
 
 
 def to_two_level(state):
@@ -128,6 +128,7 @@ def plot_pulse(pulse, tlist, T=None):
         ax.plot(tlist, [-S(t, T) for t in tlist], color='k', linestyle='--', linewidth=1)
     ax.set_xlabel('Time (ns)')
     ax.set_ylabel('Pulse amplitude')
+    ax.set_ylim([-pulse_max(0)*1.05,pulse_max(0)*1.05])
     plt.show(fig)
 
 def plot_system(ψ):
@@ -197,7 +198,7 @@ def plot_matrix_final_target(target_state, final_state, xlabels, ylabels, el=30,
     return (fig, ax)
 
 
-# In[727]:
+# In[321]:
 
 
 def fid(result, target):
@@ -209,7 +210,7 @@ def proj(ψ, ϕ=None):
         return ψ * ϕ.dag()
 
 
-# In[1039]:
+# In[322]:
 
 
 Si = qutip.operators.identity(L)
@@ -347,17 +348,26 @@ def states(coeffs):
 # $T=5$. The entire time grid is divided into
 # $n_{t}=500$ equidistant time steps.
 
-# In[1220]:
+# In[579]:
 
 
-σ = 3 # ns (gaussian pulse limit)
-A = 1.5624613041 # Chosen such that the integral of any Blackman pulse = π/2
-amp_max = A/(np.sqrt(2*π)*σ)
+def pulse_max(σ):
+    A = 1.56246130414 # Chosen such that the integral of any Blackman pulse = π
+    A = A/2
+    σ = np.max((σ,3))
+    return A/(np.sqrt(2*π)*σ)
+
+
+# In[580]:
+
+
+σ_max = 3 # ns (gaussian pulse limit)
+amp_max = pulse_max(0)
 
 T_q = (2*π)/ω_q
-T = 0.5 * T_q
-T = 6*σ*0.2
-steps = 2000
+T = 18*2
+σ = T/6
+steps = 4*int(np.ceil(T))
 tlist = np.linspace(0, T, steps)
 
 
@@ -366,7 +376,7 @@ H = hamiltonian(ampl0=1, use_rotating=True, phase=np.exp(-1j*ω_q*T))
 #st = states(coeffs)
 #ϕ = [[ tensor(basis(L,0), coherent(N,α)), tensor((basis(L,0)-basis(L,1)).unit(), coherent(N,α)) ]]
 #ϕ = [[ basis(L,0), (basis(L,0)-basis(L,1)).unit() ]]
-ϕ = [[ basis(L,0), basis(L,1) ]]
+ϕ = [[ basis(L,0), basis(L,2) ]]
 F_err = 1e-5
 F_oc_tar = 1-F_err
 
@@ -380,7 +390,7 @@ F_oc_tar = 1-F_err
 # dynamics of
 # the system to the optimization objective.
 
-# In[1221]:
+# In[581]:
 
 
 import copy
@@ -417,31 +427,22 @@ else:
 # defined for the updates for this purpose (although generally, $S(t)$ for the
 # updates has nothing to with the shape of the control field).
 
-# In[1229]:
+# In[582]:
 
 
 def S(t, T=6*σ, σ=σ):
-    rise_time = 3*σ
-    if T<rise_time*2:
-        #return A/(np.sqrt(2*π)*(σ))*krotov.shapes.blackman(t, t_start=0, t_stop=T)
-        #if t<=T/2:
-        #max_amp = krotov.shapes.flattop(T/2, t_start=0, t_stop=rise_time*2, t_rise=rise_time, t_fall=rise_time, func='sinsq')
-        return amp_max*krotov.shapes.blackman(t, t_start=0, t_stop=T)
-            #return krotov.shapes.flattop(t, t_start=0, t_stop=rise_time*2, t_rise=rise_time, t_fall=rise_time, func='sinsq')
-        #else:
-         #   return krotov.shapes.flattop(t+rise_time*2-T, t_start=0, t_stop=rise_time*2, t_rise=rise_time, t_fall=rise_time, func='sinsq')
-    else:
-        return amp_max*krotov.shapes.flattop(t, t_start=0, t_stop=T, t_rise=rise_time, t_fall=rise_time, func='sinsq')
+    rise_time = 2
+    return amp_max*krotov.shapes.flattop(t, t_start=0, t_stop=T, t_rise=rise_time, t_fall=rise_time, func='sinsq')
 
 def start_pulse(t, T=6*σ, σ=σ):
     if σ is not None:
-        return amp_max*krotov.shapes.blackman(t, t_start=0, t_stop=6*σ)
+        return pulse_max(σ)*krotov.shapes.blackman(t, t_start=0, t_stop=6*σ)
     else:
         return krotov.shapes.blackman(t, t_start=0, t_stop=T)
 def zero_pulse(t, T=T, σ=4):
     return 0
 def unit_pulse(t, T=T, σ=4):
-    return 1*amp_max
+    return 1
 
 def shape_field(ϵ, sf, T, σ):
     """Applies the shape function S(t) to the guess field"""
@@ -450,10 +451,11 @@ def shape_field(ϵ, sf, T, σ):
 
 S_unit = [unit_pulse,unit_pulse]
 S_zero = [zero_pulse,zero_pulse]
-S_start = [start_pulse,zero_pulse]
+S_start = [lambda t, T=T, σ=σ: 0.01*unit_pulse(t, T=T, σ=σ),start_pulse]
+S_start = [zero_pulse, start_pulse]
 S_funs = [S,S]
 for i, H_i in enumerate(H[1:]):
-    H_i[1] = shape_field(H_i[1], S_funs[i], T, σ)
+    H_i[1] = shape_field(H_i[1], S_start[i], T, σ)
 
 
 # Having defined the shape function $S(t)$ and having shaped the guess field, we
@@ -476,7 +478,7 @@ for i, H_i in enumerate(H[1:]):
 # The following plot shows the guess field $\epsilon_{0}(t)$, which is, as chosen
 # above, just a constant field (with a smooth switch-on and switch-off)
 
-# In[1223]:
+# In[583]:
 
 
 for H_i in H[1:]:
@@ -487,13 +489,13 @@ for H_i in H[1:]:
 # contains the initial state $\ket{\Psi_{\init}}$ and the Hamiltonian $\op{H}(t)$
 # defining its evolution.
 
-# In[866]:
+# In[584]:
 
 
 guess_dynamics = [ob.mesolve(tlist, progress_bar=True, options=qutip.Options(nsteps=50000)) for ob in objectives]
 
 
-# In[868]:
+# In[585]:
 
 
 def qubit_occupation(dyn):
@@ -513,7 +515,7 @@ def plot_norm(result):
     plt.show(fig)
 
 
-# In[869]:
+# In[586]:
 
 
 #state_1 = basis(3,1)
@@ -525,7 +527,7 @@ def plot_norm(result):
 #plot_cardinal([to_two_level(state_1),to_two_level(state_2)])
 
 
-# In[870]:
+# In[587]:
 
 
 def desuperposition(ϕ, f):
@@ -540,7 +542,7 @@ def desuperposition(ϕ, f):
     return ϕ_f
 
 
-# In[871]:
+# In[588]:
 
 
 final_state = desuperposition(guess_dynamics[0].states[-1], F_err)
@@ -554,7 +556,7 @@ print(final_state)
 print(ϕ[0][1])
 
 
-# In[873]:
+# In[589]:
 
 
 qubit_occupation(guess_dynamics[0])
@@ -565,17 +567,17 @@ qubit_occupation(guess_dynamics[0])
 # the initial state $\ket{\Psi_{\init}} = \ket{0}$ to the desired target state
 # $\ket{\Psi_{\tgt}} = \ket{1}$.
 
-# In[874]:
+# In[498]:
 
 
 #plot_all(guess_dynamics, ϕ)
 plot_evolution(guess_dynamics, steps=5)
 
 
-# In[875]:
+# In[590]:
 
 
-qubit_pulses = [H[1][1](t, 0) for t in tlist]
+qubit_pulses = [H[2][1](t, 0) for t in tlist]
 #qubit_pulses_filtered = apply_spectral_filter(copy.deepcopy(qubit_pulses), tlist, 0, 0.5)
 plot_spectrum(qubit_pulses, tlist, mark_freq=[0, -K_q, -K_q/2], pos=0, xlim=[-2*π,2*π])
 #plot_spectrum(qubit_pulses_filtered, tlist, mark_freq=[0, K_q], pos=0, xlim=[-2*K_q,2*K_q])
@@ -617,20 +619,20 @@ plot_spectrum(qubit_pulses, tlist, mark_freq=[0, -K_q, -K_q/2], pos=0, xlim=[-2*
 # $\ket{\Psi(T)}$ the
 # forward propagated state of $\ket{\Psi_{\init}}$.
 
-# In[876]:
+# In[591]:
 
 
 pulse_options = {H_i[1]: dict(lambda_a=5, shape=S_funs[i]) for i, H_i in enumerate(H[1:])}
 
 
-# In[877]:
+# In[592]:
 
 
 ω_0 = 0
 ω_1 = np.abs(K_q/2)
 
 
-# In[1271]:
+# In[593]:
 
 
 def F_oc(fw_states_T, objectives, tau_vals=None, **kwargs):
@@ -691,11 +693,11 @@ def modify_params(**kwargs):
             kwargs['optimized_pulses'][i] = (amp_max*np.array(kwargs['optimized_pulses'][i])/pulse_max)
         kwargs['optimized_pulses'][i] = np.fmax(np.fmin(kwargs['optimized_pulses'][i], kwargs['shape_arrays'][i]), -np.array(kwargs['shape_arrays'][i]))
         
-        conv = 3*σ
-        if (conv % 2 == 0): conv += 1
-        kwargs['optimized_pulses'][i] = savgol_filter(kwargs['optimized_pulses'][i], conv, 2)
+        #conv = 3*σ
+        #if (conv % 2 == 0): conv += 1
+        #kwargs['optimized_pulses'][i] = savgol_filter(kwargs['optimized_pulses'][i], conv, 2)
         
-        #if kwargs['iteration'] % 10 == 0:
+        #if kwargs['iteration'] % 50 == 0:
         #    plot_pulse(kwargs['optimized_pulses'][i], kwargs['tlist'][:-1], kwargs['tlist'][-1])
         #    plot_spectrum(kwargs['optimized_pulses'][i], kwargs['tlist'][:-1], mark_freq=[0, -K_q, -K_q/2], mark_color=['r','g','b'], pos=0, xlim=[-(2*π), (2*π)])
     # Update λ
@@ -708,14 +710,14 @@ def modify_params(**kwargs):
     #print("λₐ = {}".format(kwargs['lambda_vals']))
 
 
-# In[1272]:
+# In[594]:
 
 
 # Reset results
 opt_result = None
 
 
-# In[1273]:
+# In[595]:
 
 
 def convergence_reason(opt_result):
@@ -729,7 +731,7 @@ def convergence_reason(opt_result):
         return False
 
 
-# In[1274]:
+# In[596]:
 
 
 from datetime import datetime
@@ -737,18 +739,27 @@ def current_time():
     return datetime.now().isoformat()[:16].replace('T',' ')
 
 
-# In[1337]:
+# In[699]:
+
+
+def sine_pulse(t, T=σ*6, σ=σ):
+    ω = K_q/2
+    return np.sin(ω*t)*start_pulse(t, T=T, σ=σ)
+
+
+# In[730]:
 
 
 def run_optim(T, lambda_a, ϕ):
+    σ = T/6
     opt_result = None
     print('T = {}'.format(T))
-    steps = 100
-    tlist = np.linspace(0, T, steps)
+    #steps = 500
+    tlist = np.linspace(0, T, 4*int(np.ceil(T)))
     s_pulse = None
     H = hamiltonian(ampl0=1, use_rotating=True, start_pulse=s_pulse, T=T, phase=np.exp(-1j*ω_q*T))
     
-    S_start = [unit_pulse, zero_pulse]
+    S_start = [start_pulse, start_pulse]
     S_funs = [S, S]
     for i, H_i in enumerate(H[1:]):
         H_i[1] = shape_field(H_i[1], S_start[i], T, σ)
@@ -767,7 +778,10 @@ def run_optim(T, lambda_a, ϕ):
         return True
     
     pulse_options = {H_i[1]: dict(lambda_a=lambda_a, shape=lambda t: S_funs[i](t, T=T, σ=σ)) for i, H_i in enumerate(H[1:])}
-    #pulse_options = {H_i[1]: dict(lambda_a=lambda_a, shape=lambda t: 1) for i, H_i in enumerate(H[1:])}
+    #pulse_options = {
+    #    H[2][1]: dict(lambda_a=lambda_a, shape=0),
+    #    H[1][1]: dict(lambda_a=lambda_a, shape=lambda t: S_funs[0](t, T=T, σ=σ)),    
+    #}
     while convergence_reason(opt_result):
         if convergence_reason(opt_result) == 'monotonic':
             break
@@ -801,19 +815,20 @@ def run_optim(T, lambda_a, ϕ):
     opt_result.dump(os.path.join(os.getcwd(),'results','{}_pi_pulse_optim_{}.dat'.format(current_time(),T)))
 
 
-# In[1339]:
+# In[731]:
 
 
-step_size = amp_max*0.1
+step_size = pulse_max(0)*2.
 λ = 1/step_size
-ϕ = [[ basis(L,0), (basis(L,1)).unit() ]]
+ϕ = [[ basis(L,0), (basis(L,2)).unit() ]]
 
 existing_times = [float(file.split('_')[4][:-4]) for file in os.listdir('results')]
-#t_times = np.arange(0, 0.5*6*σ, .4285714289)[1:]
-t_times = [7.5]
+t_times = np.flip(np.arange(1,21.5,1))
 for tot in t_times:
     if tot not in [float(file.split('_')[4][:-4]) for file in os.listdir('results')]:
         #plot_cardinal(state_rot(ϕ, tot)[0])
+        if tot.is_integer():
+            tot = int(tot)
         run_optim(tot, λ, ϕ)
     else:
         print('T = {} already exists'.format(tot))
@@ -827,7 +842,7 @@ for tot in t_times:
 # population dynamics under
 # this field.
 
-# In[1388]:
+# In[727]:
 
 
 def plot_results_3d(results):
@@ -866,39 +881,52 @@ def plot_results_pulse_length(results, iteration=-1, ax=None):
     return ax
 
 
-# In[1392]:
+# In[733]:
 
 
-results = [(krotov.result.Result.load(os.path.join(os.getcwd(),'good_results',file), objectives=get_objectives(T=float(file.split('_')[-1][:-4]))), float(file.split('_')[-1][:-4])) for file in os.listdir('good_results') if file[-4:]=='.dat']
-get_ipython().run_line_magic('matplotlib', 'notebook')
+folder = 'results'
+results = [(krotov.result.Result.load(os.path.join(os.getcwd(),folder,file), objectives=get_objectives(T=float(file.split('_')[-1][:-4]))), float(file.split('_')[-1][:-4])) for file in os.listdir(folder) if file[-4:]=='.dat']
+get_ipython().run_line_magic('matplotlib', 'inline')
 plot_results_3d(results)
-#plot_results_iteration(results)
 
-#plot_results_pulse_length(results, iteration=20, ax=ax)
+#plot_results_pulse_length(results, iteration=0)
 
-
-# In[1393]:
+plot_results_iteration(results)
 
 
+# In[565]:
+
+
+plot_results_pulse_length(results, iteration=20, ax=ax)
 ax = plt.axes()
 def interactive_plot(iteration):
     plot_results_pulse_length(results, iteration=iteration, ax=ax)
 interact(interactive_plot, iteration=widgets.IntSlider(min=0,max=900,step=1,value=0));
 
 
-# In[ ]:
+# In[1394]:
+
+
+import matplotlib2tikz
+matplotlib2tikz.save("mytikz.tex")
+
+
+# In[1486]:
 
 
 get_ipython().run_line_magic('matplotlib', 'inline')
 
 
-# In[1333]:
+# # Analyze
+
+# In[718]:
 
 
-results = [(krotov.result.Result.load(os.path.join(os.getcwd(),'results',file), objectives=get_objectives(T=float(file.split('_')[-1][:-4]))), float(file.split('_')[-1][:-4])) for file in os.listdir('results') if file[-4:]=='.dat' and file=='2019-04-25 11:11_pi_pulse_optim_7.2857142913.dat']
+results = [(krotov.result.Result.load(os.path.join(os.getcwd(),folder,file), objectives=get_objectives(T=float(file.split('_')[-1][:-4]))), float(file.split('_')[-1][:-4])) for file in os.listdir(folder) if file[-4:]=='.dat']
+results = results[-1:]
 
 
-# In[1334]:
+# In[719]:
 
 
 T_q = (2*π)/ω_q
@@ -929,7 +957,7 @@ for (r,_) in results:
     
 
 
-# In[1335]:
+# In[720]:
 
 
 xlabels = ['$|0\\rangle$','$|1\\rangle$','$|2\\rangle$']
@@ -1035,7 +1063,7 @@ qubit_pulses = opt_result.optimized_controls
 time_list = tlist
 
 
-# In[186]:
+# In[58]:
 
 
 def plot_spectrum(pulse, tlist, mark_freq=None, pos=1, xlim=None, mark_color=['k','k','k']):
