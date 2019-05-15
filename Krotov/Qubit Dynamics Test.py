@@ -3,7 +3,7 @@
 
 # # Optimization of a State-to-State Transfer in a Two-Level-System
 
-# In[1]:
+# In[42]:
 
 
 # NBVAL_IGNORE_OUTPUT
@@ -24,6 +24,8 @@ sqrt = np.sqrt
 basis = qutip.basis
 tensor = qutip.tensor
 coherent = qutip.coherent
+
+import matplotlib2tikz
 
 
 # $\newcommand{tr}[0]{\operatorname{tr}}
@@ -87,6 +89,28 @@ coherent = qutip.coherent
 
 
 L = 3
+
+
+# In[36]:
+
+
+['$|{}\rangle$'.format(i) for i in range(3)]
+
+
+# In[47]:
+
+
+L = 3
+a = qutip.operators.destroy(L)
+K = np.linspace(0,0.5)
+E = [(a.dag()*a + -κ/2*(a.dag()*a)**2).eigenenergies() for κ in K]
+plt.figure(figsize=(4, 4))
+ax = plt.subplot(111)
+ax.plot(K,E)
+ax.set_xlabel('$\kappa$')
+ax.set_ylabel('$E$')
+ax.legend(['$|{}\\rangle$'.format(i) for i in range(3)])
+matplotlib2tikz.save("energy-anharmonic.tex",figureheight = '\\figureheight',figurewidth = '\\figurewidth')
 
 
 # # Plotting functions

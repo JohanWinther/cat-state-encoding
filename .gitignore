@@ -2,3 +2,6 @@
 results
 old_results
 .dat
+*.pyx
+pulse-optim-gif*
+Krotov/gif
