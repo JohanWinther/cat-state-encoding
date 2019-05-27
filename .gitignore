@@ -1,7 +1,7 @@
 **/*.ipynb_checkpoints
 results
 old_results
-.dat
+*.dat
 *.pyx
-pulse-optim-gif*
 Krotov/gif
+*_gif
