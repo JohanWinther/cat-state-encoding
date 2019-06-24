@@ -3,7 +3,7 @@
 
 # # Optimization of a State-to-State Transfer in a Two-Level-System
 
-# In[1]:
+# In[ ]:
 
 
 # NBVAL_IGNORE_OUTPUT
@@ -36,74 +36,17 @@ def current_time():
     return datetime.now().isoformat()[:16].replace('T',' ')
 
 
-# $\newcommand{tr}[0]{\operatorname{tr}}
-# \newcommand{diag}[0]{\operatorname{diag}}
-# \newcommand{abs}[0]{\operatorname{abs}}
-# \newcommand{pop}[0]{\operatorname{pop}}
-# \newcommand{aux}[0]{\text{aux}}
-# \newcommand{opt}[0]{\text{opt}}
-# \newcommand{tgt}[0]{\text{tgt}}
-# \newcommand{init}[0]{\text{init}}
-# \newcommand{lab}[0]{\text{lab}}
-# \newcommand{rwa}[0]{\text{rwa}}
-# \newcommand{bra}[1]{\langle#1\vert}
-# \newcommand{ket}[1]{\vert#1\rangle}
-# \newcommand{Bra}[1]{\left\langle#1\right\vert}
-# \newcommand{Ket}[1]{\left\vert#1\right\rangle}
-# \newcommand{Braket}[2]{\left\langle #1\vphantom{#2} \mid
-# #2\vphantom{#1}\right\rangle}
-# \newcommand{op}[1]{\hat{#1}}
-# \newcommand{Op}[1]{\hat{#1}}
-# \newcommand{dd}[0]{\,\text{d}}
-# \newcommand{Liouville}[0]{\mathcal{L}}
-# \newcommand{DynMap}[0]{\mathcal{E}}
-# \newcommand{identity}[0]{\mathbf{1}}
-# \newcommand{Norm}[1]{\lVert#1\rVert}
-# \newcommand{Abs}[1]{\left\vert#1\right\vert}
-# \newcommand{avg}[1]{\langle#1\rangle}
-# \newcommand{Avg}[1]{\left\langle#1\right\rangle}
-# \newcommand{AbsSq}[1]{\left\vert#1\right\vert^2}
-# \newcommand{Re}[0]{\operatorname{Re}}
-# \newcommand{Im}[0]{\operatorname{Im}}$
-# The purpose of this example is not to solve an especially interesting physical
-# problem but to give a rather simple example of how the package can be used in
-# order to solve an optimization problem.
-# 
-# ## Define the Hamiltonian
-# 
-# In the
-# following the Hamiltonian, guess field and
-# states are defined.
-# 
-# The Hamiltonian
-# $\op{H}_{0} = - \omega \op{\sigma}_{z}$
-# represents a
-# simple qubit with energy
-# level splitting $\omega$ in the basis
-# $\{\ket{0},\ket{1}\}$. The control
-# field
-# $\epsilon(t)$ is assumed to couple via
-# the
-# Hamiltonian $\op{H}_{1}(t) =
-# \epsilon(t) \op{\sigma}_{x}$ to the qubit,
-# i.e., the control
-# field effectively
-# drives
-# transitions between both qubit
-# states. For now, we initialize the control
-# field as constant.
-
-# In[2]:
+# In[ ]:
 
 
-L = 3
-N = 8
-α = 2
+L = 2 # Qubit truncated Hilbert size
+N = 8 # Resonator truncated Hilbert size
+α = 2 # Mean photon number of resonator coherent states
 
 
-# # Plotting functions
+# # Plotting and helper functions
 
-# In[3]:
+# In[ ]:
 
 
 def to_two_level(state):
@@ -181,28 +124,20 @@ def plot_all(dyn, ψ):
     plot_resonator(ψ_t)
     plot_cardinal(ψ_f)
     plot_resonator(ψ_f)
-def plot_evolution(dyn, steps=1):
-    for d in dyn:
-        points = [to_two_level(s) for s in d.states[0:-1:steps]]
-        bl = qutip.Bloch()
-        bl.vector_color = 'r'
-        bl.point_color = 'r'
-        bl.point_marker = 'o'
-        bl.add_states(points, 'point')
-        bl.show()
-        #bl = qutip.Bloch()
-        #bl.vector_color = 'r'
-        #bl.point_color = 'r'
-        #bl.point_marker = 'o'
-        #bl.view = [bl.view[0], 80]
-        #bl.add_states(points, 'point')
-        #bl.show()
+def plot_evolution(dyn, steps=1, color_list=[[1,0,0]]):
+    points = [s.ptrace(0) for s in dyn.states[0:-1:steps]]
+    bl = qutip.Bloch()
+    bl.vector_color = 'r'
+    bl.point_color = color_list
+    bl.point_marker = 'o'
+    bl.add_states(points, 'point')
+    bl.show()
     return bl
 def get_objectives(T=None):
-    #if use_rotating:
-    #    objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in state_rot(ϕ, T)]
-    #else:
-    objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in ϕ]
+    if use_rotating:
+        objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in state_rot(ϕ, T)]
+    else:
+        objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in ϕ]
     return objectives
 def plot_matrix_final_target(target_state, final_state, xlabels, ylabels, el=30, az=135):
     fig, ax = qutip.visualization.matrix_histogram(final_state * target_state.dag(), xlabels, ylabels, colorbar=False, limits=[-1,1])
@@ -216,7 +151,7 @@ def plot_matrix_final_target(target_state, final_state, xlabels, ylabels, el=30,
     return (fig, ax)
 
 
-# In[4]:
+# In[ ]:
 
 
 def F_oc(fw_states_T, objectives, tau_vals=None, **kwargs):
@@ -240,7 +175,7 @@ def plot_fid_convergence(ax, info_vals, T):
     ax.plot3D(range(0,len(info_vals)), [T]*len(info_vals), info_vals)
 
 
-# In[5]:
+# In[ ]:
 
 
 def qubit_occupation(dyn):
@@ -249,12 +184,15 @@ def qubit_occupation(dyn):
     n = qutip.expect(occ, states)
     fig = plot_population(n, dyn.times)
     return fig
-def resonator_occupation(dyn):
+def resonator_occupation(dyn, export=False):
     occ = [basis(N,i)*basis(N,i).dag() for i in range(0,N)]
     states = [state.ptrace(1) for state in dyn.states]
     n = qutip.expect(occ, states)
-    fig = plot_population(n, dyn.times)
-    return fig
+    if export is True:
+        return n
+    else:
+        fig = plot_population(n, dyn.times);
+        return fig
 def plot_norm(result):
     state_norm = lambda i: result.states[i].norm()
     states_norm=np.vectorize(state_norm)
@@ -267,15 +205,17 @@ def plot_norm(result):
     plt.show(fig)
 
 
-# In[6]:
+# In[ ]:
 
 
 def plot_spectrum(pulse, tlist, mark_freq=None, pos=1, xlim=None, mark_color=['k','k','k']):
     samples = len(tlist)
     sample_interval = tlist[-1]/samples
+    signal_qubit = np.pad(pulse, (0, power_two-samples), mode='constant')
+    samples = power_two
     time = np.linspace(0, samples*sample_interval, samples)
 
-    signal_qubit = pulse
+    #signal_qubit = pulse
     signal_spectrum = np.fft.fftshift(np.fft.fft(signal_qubit))
     freqs = np.fft.fftshift(np.fft.fftfreq(samples, d=sample_interval))
 
@@ -300,7 +240,7 @@ def plot_spectrum(pulse, tlist, mark_freq=None, pos=1, xlim=None, mark_color=['k
     return fig
 
 
-# In[7]:
+# In[ ]:
 
 
 def fid(final, target):
@@ -312,7 +252,7 @@ def proj(ψ, ϕ=None):
         return ψ * ϕ.dag()
 
 
-# In[18]:
+# In[ ]:
 
 
 def plot_results_3d(results):
@@ -368,7 +308,39 @@ def plot_results_pulse_length(results, iteration=-1, ax=None, shape='o',color='k
     return ax
 
 
-# In[9]:
+# In[ ]:
+
+
+def F_oc(fw_states_T, objectives, tau_vals=None, **kwargs):
+    return krotov.functionals.F_ss(fw_states_T, objectives, tau_vals, **kwargs)
+
+def calc_fidelity(tau_vals):
+    return np.abs(np.sum(tau_vals)/len(tau_vals))**2
+
+def print_fidelity(**args):
+    fid = calc_fidelity(np.array(args['tau_vals']))
+    print("          F_t = {} | F = {} | F_t - F = {}".format(F_oc_tar, fid, F_oc_tar-fid))
+def plot_fid_convergence(info_vals):
+    fig, ax = plt.subplots(1,1)
+    ax.plot(info_vals)
+    ax.set_xticks(np.arange(0, len(info_vals), step=1))
+    ax.set_xlabel('Iteration')
+    ax.set_ylabel('Fidelity')
+    #ax.set_ylim((-0.2,.2))
+    plt.show()
+def plot_fid_convergence(ax, info_vals, T):
+    ax.plot3D(range(0,len(info_vals)), [T]*len(info_vals), info_vals)
+
+
+# In[ ]:
+
+
+from datetime import datetime
+def current_time():
+    return datetime.now().isoformat()[:16].replace('T',' ')
+
+
+# In[ ]:
 
 
 def pulse_max(σ):
@@ -378,19 +350,22 @@ def pulse_max(σ):
     return A/(np.sqrt(2*π)*σ)
 
 
-# In[10]:
+# # System setup
+
+# In[ ]:
 
 
 σ_max = 3 # ns (gaussian pulse limit)
 amp_max = pulse_max(0)
 
-T = 100
+# Below are settings for testing, optimization settings are set in the optimization section
+T = 60
 σ = T/6
 steps = 32*int(np.ceil(T))
 tlist = np.linspace(0, T, steps)
 
 
-# In[11]:
+# In[ ]:
 
 
 cat_0 = (coherent(N, α) + coherent(N,-α)).unit()
@@ -431,10 +406,10 @@ K_r   = 2*π*4.5e-6   # Kerr res 1-10 Khz
 
 Δ = abs(ω_r - ω_q)    # detuning
 g = sqrt(Δ * χ)  # coupling strength that is consistent with chi
-γ = 1e1
+γ = 1e1  # Dissipation (unused)
 
 use_rotating = True
-def hamiltonian(ω=1.0, ampl0=1, use_rotating=True, pulses=None, tlist=None, start_pulse=None, T=1, phase=0, σ=σ):
+def hamiltonian(ω=1.0, ampl0=1, use_rotating=True, pulses=None, tlist=None, start_pulse=None, T=1, σ=σ):
     """Two-level-system Hamiltonian
     
     Args:
@@ -443,11 +418,9 @@ def hamiltonian(ω=1.0, ampl0=1, use_rotating=True, pulses=None, tlist=None, sta
     """
     
     #H_occ = w_r*a.dag()*a + w_q*b.dag()*b
-    if L==3:
-        H_occ_q = qutip.Qobj(np.diag([0, ω_q, 2*ω_q]))
-    else:
-        H_occ_q = qutip.Qobj(np.diag([0, ω_q]))
-    H_occ_q = tensor(H_occ_q, Ri)
+    #H_occ_q = qutip.Qobj(ω_q*np.diag(range(L)))
+    #H_occ_q = tensor(H_occ_q, Ri)
+    H_occ_q = ω_q * b.dag()*b
     H_occ_r = ω_r * a.dag()*a
     H_occ =  H_occ_q + H_occ_r
     
@@ -461,8 +434,8 @@ def hamiltonian(ω=1.0, ampl0=1, use_rotating=True, pulses=None, tlist=None, sta
     #    H_coup = g * (a.dag() * b + a * b.dag())
     #    H_coup = g * σ_x *a.dag() + a
     if use_kerr:
-        H_kq = - K_q/2 * b.dag()**2 * b**2
-        H_kr = - K_r/2 * a.dag()**2 * a**2
+        H_kq =  -K_q/2 * b.dag()**2 * b**2
+        H_kr =  -K_r/2 * a.dag()**2 * a**2
     else:
         H_kq = zero_q
         H_kr = zero_r
@@ -477,8 +450,8 @@ def hamiltonian(ω=1.0, ampl0=1, use_rotating=True, pulses=None, tlist=None, sta
         H_rr = (a.dag() + a)
         H_ri = 1j*(a.dag() - a)
         
-        H_cc = g*(a*b + a.dag()*b.dag())
-        H_cs = g*1j*(a*b - a.dag()*b.dag())
+        H_cc = g*(a*b.dag() + a.dag()*b)
+        H_cs = g*1j*(a*b.dag() - a.dag()*b)
         
         if start_pulse is None:
             ϵ_qr = lambda t, args: ampl0
@@ -491,38 +464,49 @@ def hamiltonian(ω=1.0, ampl0=1, use_rotating=True, pulses=None, tlist=None, sta
             ϵ_rr = shape_field(lambda t, args: ampl0, start_pulse, T, σ)
             ϵ_ri = shape_field(lambda t, args: ampl0, start_pulse, T, σ)
         
+        
+        ϵ_cc = lambda t, args: np.cos((ω_q - ω_r)*t)
+        ϵ_cs = lambda t, args: np.sin((ω_q - ω_r)*t)
+        
         if pulses:
             ϵ_qr = pulses[0]
             ϵ_qi = pulses[1]
             ϵ_rr = pulses[2]
             ϵ_ri = pulses[3]
-
-        ϵ_cc = lambda t, args: np.cos((ω_q - ω_r)*t)
-        ϵ_cs = lambda t, args: np.sin((ω_q - ω_r)*t)
+            ϵ_cc = pulses[4]
+            ϵ_cs = pulses[5]
         
         return [H_d, [H_qr, ϵ_qr], [H_qi, ϵ_qi], [H_rr, ϵ_rr], [H_ri, ϵ_ri], [H_cc, ϵ_cc], [H_cs, ϵ_cs]]
     else:
-        H_d += H_occ + H_kerr#+ H_coup
+        H_coup = g*(a.dag()*b+a*b.dag())
+        H_d += H_occ + H_kq + H_kr +H_coup
         
         H_q = b
         H_qc = b.dag()
-        H_rr = ZERO
-        H_ri = ZERO
+        H_r = a
+        H_rc = a.dag()
         
-
-        ϵ_q = lambda t, args: 1j*ampl0*np.exp(1j*ω_q*t)
-        ϵ_qc = lambda t, args: -1j*ampl0*np.exp(-1j*ω_q*t)
-        #ϵ_rr = lambda t, args: ampl0
-        #ϵ_ri = lambda t, args: ampl0
+        H_cc = I
+        H_cs = I
         
         if pulses:
             ϵ_q = pulses[0]
             ϵ_qc = pulses[1]
-            #ϵ_rr = np.zeros(len(pulses[0]))
-            #ϵ_ri = np.zeros(len(pulses[0]))
+            ϵ_r = pulses[2]
+            ϵ_rc = pulses[3]
+            ϵ_cc = [0]*len(pulses[0])
+            ϵ_cs = [0]*len(pulses[0])
+        else:
+            ϵ_q = lambda t, args: 0
+            ϵ_qc = lambda t, args: 0
+            ϵ_r = lambda t, args: 0
+            ϵ_rc = lambda t, args: 0
+            ϵ_cc = lambda t, args: 0
+            ϵ_cs = lambda t, args: 0
         
-        return [H_d, [H_q, ϵ_q], [H_qc, ϵ_qc]]#, [H_rr, ϵ_rr], [H_ri, ϵ_ri]]
-
+        return [H_d, [H_q, ϵ_q], [H_qc, ϵ_qc], [H_r, ϵ_r], [H_rc, ϵ_rc], [H_cc, ϵ_cc], [H_cs, ϵ_cs]]
+    
+# Converts basis state coefficients into the corresponding states of the qubit-resonator system 
 def coeffs_to_state(c,init = True):
     if init:
         ψ = tensor((c[0]*basis(L,0) + c[1]*basis(L,1)).unit() , (basis(N,0)))
@@ -530,92 +514,55 @@ def coeffs_to_state(c,init = True):
         ψ = tensor((basis(L,0)) , (c[0]*cat_0 + c[1]*cat_1).unit())
     return ψ
 
+# Feeds a list of coeffients into the function above
 def states(coeffs):
     return [[coeffs_to_state(c,True),coeffs_to_state(c,False)] for c in coeffs]
 
 
-# ## Define the optimization target
-
-# First we define the time grid of the
-# dynamics, i.e., by taking the following
-# values as an example, we define the
-# initial state to be at time $t=0$ and
-# consider a total propagation time of
-# $T=5$. The entire time grid is divided into
-# $n_{t}=500$ equidistant time steps.
-
-# In[12]:
+# In[ ]:
 
 
-H = hamiltonian(ampl0=1, use_rotating=True, phase=np.exp(-1j*ω_q*T))
-#coeffs = [(1,0), (1,-1), (1,1j), (1,1), (1,-1j), (0,1)]
-coeffs = [(1,0)]
-st = states(coeffs)
-ϕ = [[ tensor(basis(L,1), basis(N,0)), tensor((basis(L,0)).unit(), (cat_1)) ]]
-F_err = 1e-6
-F_oc_tar = 1-F_err
+H = hamiltonian(ampl0=1, use_rotating=True)
+coeffs = [(1,0), (1,-1), (1,1j), (1,1), (1,-1j), (0,1)] # Six states which will be transferred
+#coeffs = [(1,0)]
+ϕ = states(coeffs)
+F_err = 1e-6 # Infidelity goal
+F_oc_tar = 1-F_err # Fidelity goal
 
 
-# Next, we define the optimization targets, which is technically a list of
-# objectives, but here it has just one entry defining a simple state-to-state
-# transfer
-# from initial state $\ket{\Psi_{\init}} = \ket{0}$ to the target state
-# $\ket{\Psi_{\tgt}} = \ket{1}$, which we want to reach at final time $T$. Note
-# that we also have to pass the Hamiltonian $\op{H}(t)$ that determines the
-# dynamics of
-# the system to the optimization objective.
-
-# In[13]:
+# In[ ]:
 
 
+# Rotates the target states into the rotating frame
 def state_rot(ϕ, T):
     ϕ = copy.deepcopy(ϕ)
-    ϕ_q = ϕ.ptrace(0)
-    if np.sum(np.array(ϕ[0][1].full())==0) != L-1:
-        if L == 3:
-            rot_evo = qutip.Qobj([[1, 0, 0],[0, np.exp(-1j * ω_q * T), 0],[0, 0, 0]])
-        else:
-            rot_evo = qutip.Qobj([[1, 0],[0, np.exp(-1j * ω_q * T)]])
-        
-        ϕ[0][1] = rot_evo * ϕ[0][1]
-    #ϕ_r = ϕ.ptrace(0)
+    for i in range(len(ϕ)):
+        U_0 = (1j*ω_q*b.dag()*b*T).expm()*(1j*ω_r*a.dag()*a*T).expm()
+        ϕ[i] = U_0 * ϕ[i]
     return ϕ
 
-if use_rotating:
-    objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in ϕ]
-    #objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in state_rot(copy.deepcopy(ϕ), T)]
-else:
-    objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in ϕ]
+#if use_rotating:
+    #objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in ϕ]
+#    objectives = [krotov.Objective(initial_state=ψ[0], target=state_rot(ψ[1],T), H=H) for ψ in ϕ]
+#else:
+#    objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in ϕ]
 
 
-# In addition, we have to define and assign a shape function $S(t)$ for the update
-# in each control iteration to each
-# control field that will be updated. This shape
-# usually takes care of
-# experimental limits such as the necessity of finite ramps
-# at the beginning and
-# end of the control field or other conceivable limitations
-# for field shapes: wherever $S(t)$ is zero, the optimization will not change the
-# value of the control from the original guess.
-
-# At this point, we also change the initial control field $\epsilon_{0}(t)$ from a
-# constant to a shaped pulse that switches on smoothly from zero and again
-# switches off at the final time $T$. We re-use the shape function $S(t)$ that we
-# defined for the updates for this purpose (although generally, $S(t)$ for the
-# updates has nothing to with the shape of the control field).
-
-# In[24]:
+# In[ ]:
 
 
+# Envelope function which will keep the pulse zero at edges with rise and fall time = 2 ns
 def S(t, T=6*σ, σ=σ):
     rise_time = 2
     return amp_max*krotov.shapes.flattop(t, t_start=0, t_stop=T, t_rise=rise_time, t_fall=rise_time, func='sinsq')
 
+# Blackman guess pulse
 def start_pulse(t, T=6*σ, σ=σ):
     if σ is not None:
         return pulse_max(σ)*krotov.shapes.blackman(t, t_start=0, t_stop=6*σ)
     else:
         return krotov.shapes.blackman(t, t_start=0, t_stop=T)
+
 def zero_pulse(t, T=T, σ=4):
     return 0
 def unit_pulse(t, T=T, σ=4):
@@ -629,21 +576,11 @@ def shape_field(ϵ, sf, T, σ):
 S_unit = [unit_pulse]*4
 S_zero = [zero_pulse]*4
 #S_start = [lambda t, T=T, σ=σ: 0.01*unit_pulse(t, T=T, σ=σ),start_pulse]
-S_start = [zero_pulse, start_pulse, zero_pulse, start_pulse]
+S_start = [zero_pulse, start_pulse, zero_pulse, zero_pulse]
 S_funs = [S]*4
 for i, H_i in enumerate(H[1:5]):
     H_i[1] = shape_field(H_i[1], S_start[i], T, σ)
 
-
-# Having defined the shape function $S(t)$ and having shaped the guess field, we
-# now tell the optimization to also use $S(t)$ as the update-shape for
-# $\epsilon_0(t)$. In addition, we have to choose `lambda_a` for each control
-# field. It controls the update magnitude of the respective field in each
-# iteration.
-
-# It is convenient to introduce the function `print_fidelity`, which can be passed
-# to the optimization procedure and will be called after each iteration and thus
-# provides additional feedback about the optimization progress.
 
 # ## Simulate dynamics of the guess field
 # 
@@ -652,19 +589,12 @@ for i, H_i in enumerate(H[1:5]):
 # dynamics under the guess field
 # $\epsilon_{0}(t)$.
 
-# The following plot shows the guess field $\epsilon_{0}(t)$, which is, as chosen
-# above, just a constant field (with a smooth switch-on and switch-off)
-
 # In[ ]:
 
 
 for i, H_i in enumerate(H[1:]):
-    plot_pulse(H_i[1], tlist, ylim=(i > 3))
+    plot_pulse(H_i[1], tlist)
 
-
-# The next line solves the equation of motion for the defined objective, which
-# contains the initial state $\ket{\Psi_{\init}}$ and the Hamiltonian $\op{H}(t)$
-# defining its evolution.
 
 # In[ ]:
 
@@ -672,55 +602,50 @@ for i, H_i in enumerate(H[1:]):
 guess_dynamics = [ob.mesolve(tlist, progress_bar=True, options=qutip.Options(nsteps=50000)) for ob in objectives]
 
 
-# In[21]:
-
-
-def desuperposition(ϕ, f):
-    ϕ_f = copy.deepcopy(ϕ)
-    for (i, s) in enumerate(ϕ_f.full()):
-        if np.abs(s)[0] < f:
-            ϕ_f.data[i] = 0
-    ϕ_f = ϕ_f.unit()
-    for (i, s) in enumerate(ϕ_f.full()):
-        if np.abs(s)[0] == 1:
-            ϕ_f.data[i] = 1
-    return ϕ_f
-
-
-# In[10]:
+# In[ ]:
 
 
 final_state = guess_dynamics[0].states[-1]
-
-dm = final_state * ϕ[0][1].dag()
-fid = np.abs((final_state.dag() * ϕ[0][1]).full()[0][0])**2
-print('Fidelity: {}'.format(fid))
-#qutip.visualization.matrix_histogram_complex(dm, limits=[0,1])
 plot_cardinal([ϕ[0][0].ptrace(0), ϕ[0][1].ptrace(0), final_state.ptrace(0)])
 qutip.visualization.plot_wigner_fock_distribution(ϕ[0][1].ptrace(1))
 qutip.visualization.plot_wigner_fock_distribution(final_state.ptrace(1))
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 
-# In[97]:
+# In[ ]:
 
 
-qubit_occupation(guess_dynamics[0])
-resonator_occupation(guess_dynamics[0])
+for i in range(len(guess_dynamics)):
+    qubit_occupation(guess_dynamics[i]);
+    resonator_occupation(guess_dynamics[i]);
 #plot_norm(guess_dynamics[0])
 
 
-# The plot of the population dynamics shows that the guess field does not transfer
-# the initial state $\ket{\Psi_{\init}} = \ket{0}$ to the desired target state
-# $\ket{\Psi_{\tgt}} = \ket{1}$.
+# In[ ]:
 
-# In[98]:
+
+tlist2 = np.linspace(0, T, 1000*int(np.ceil(T)))
+rotating_pulses = [np.array([H_i[1](t,0) for t in tlist]) for H_i in H[1:]]
+Ω_q = rotating_pulses[0]+1j*rotating_pulses[1]
+Ω_q = np.interp(tlist2, tlist, Ω_q)
+Ω_r = rotating_pulses[2]+1j*rotating_pulses[3]
+Ω_r = np.interp(tlist2, tlist, Ω_r)
+pulses_lab = [Ω_q*np.exp(1j*ω_q*tlist2), np.conj(Ω_q)*np.exp(-1j*ω_q*tlist2), Ω_r*np.exp(1j*ω_r*tlist2), np.conj(Ω_r)*np.exp(-1j*ω_r*tlist2)]
+H_lab = hamiltonian(ampl0=1, use_rotating=False, pulses=pulses_lab)
+objectives_lab = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H_lab) for ψ in ϕ]
+r = krotov.result.Result()
+r.optimized_objectives = objectives_lab
+opt_dynamics_lab = [ob.mesolve(tlist2, progress_bar=True, options=qutip.Options(nsteps=50000)) for ob in r.optimized_objectives]
+
+
+# In[ ]:
 
 
 #plot_all(guess_dynamics, ϕ)
 plot_evolution(guess_dynamics, steps=5)
 
 
-# In[99]:
+# In[ ]:
 
 
 qubit_pulses = [H[2][1](t, 0) for t in tlist]
@@ -735,73 +660,18 @@ plot_spectrum(res_pulses, tlist, mark_freq=[0, -K_r, -K_r/2], pos=0, xlim=[-π/4
 
 
 # ## Optimize
-# 
-# In the following we optimize the guess field $\epsilon_{0}(t)$ such
-# that the intended state-to-state transfer $\ket{\Psi_{\init}} \rightarrow
-# \ket{\Psi_{\tgt}}$ is solved.
-# 
-# The cell below carries out the optimization. It
-# requires, besides the
-# previously
-# defined optimization `objectives`, information
-# about the
-# optimization functional
-# $F$ (via `chi_constructor`) and the
-# propagation method that should be used. In
-# addition, the number of total
-# iterations is required and, as an option, we pass
-# an info-hook that after each
-# iteration combines a complete printout of the state
-# of the optimization with the
-# `print_fidelity` function defined above.
-# 
-# Here, we
-# choose $F = F_{re}$ with
-# \begin{equation}
-# F_{re}
-# =
-# \Re\Braket{\Psi(T)}{\Psi_{\tgt}}
-# \end{equation}
-# 
-# with
-# $\ket{\Psi(T)}$ the
-# forward propagated state of $\ket{\Psi_{\init}}$.
 
-# In[100]:
+# In[ ]:
 
 
-pulse_options = {H_i[1]: dict(lambda_a=5, shape=S_funs[i]) for i, H_i in enumerate(H[1:])}
-
-
-# In[101]:
-
-
+# Frequency limits for spectral filter (not used)
 ω_0 = 0
 ω_1 = np.abs(K_q/2)
 
 
-# In[130]:
+# In[ ]:
 
 
-def F_oc(fw_states_T, objectives, tau_vals=None, **kwargs):
-    return krotov.functionals.F_ss(fw_states_T, objectives, tau_vals, **kwargs)
-
-def calc_fidelity(tau_vals):
-    return np.abs(np.sum(tau_vals)/len(tau_vals))**2
-
-def print_fidelity(**args):
-    fid = calc_fidelity(np.array(args['tau_vals']))
-    print("          F_t = {} | F = {} | F_t - F = {}".format(F_oc_tar, fid, F_oc_tar-fid))
-def plot_fid_convergence(info_vals):
-    fig, ax = plt.subplots(1,1)
-    ax.plot(info_vals)
-    ax.set_xticks(np.arange(0, len(info_vals), step=1))
-    ax.set_xlabel('Iteration')
-    ax.set_ylabel('Fidelity')
-    #ax.set_ylim((-0.2,.2))
-    plt.show()
-def plot_fid_convergence(ax, info_vals, T):
-    ax.plot3D(range(0,len(info_vals)), [T]*len(info_vals), info_vals)
 def modify_params(**kwargs):
     
     spectral_filtering = False
@@ -844,13 +714,14 @@ def modify_params(**kwargs):
         #conv = 3*σ
         #if (conv % 2 == 0): conv += 1
         #kwargs['optimized_pulses'][i] = savgol_filter(kwargs['optimized_pulses'][i], conv, 2)
-    for i in range(len(kwargs['optimized_pulses'])):
-        if kwargs['iteration'] % 10 == 0:
-            plot_pulse(kwargs['optimized_pulses'][i], kwargs['tlist'][:-1], kwargs['tlist'][-1])
-    if kwargs['iteration'] % 10 == 0:
-        final_state = kwargs['fw_states_T'][0]
-        plot_cardinal([final_state])
-        qutip.visualization.plot_wigner_fock_distribution(final_state.ptrace(1))
+    #for i in range(len(kwargs['optimized_pulses'])):
+    #    if kwargs['iteration'] % 20 == 0:
+    #        plot_pulse(kwargs['optimized_pulses'][i], kwargs['tlist'][:-1], kwargs['tlist'][-1])
+    #if kwargs['iteration'] % 20 == 0:
+    #    for i in range(len(kwargs['fw_states_T'])):
+    #        final_state = kwargs['fw_states_T'][i]
+    #        plot_cardinal([final_state])
+    #        qutip.visualization.plot_wigner_fock_distribution(final_state.ptrace(1))
             #plot_spectrum(kwargs['optimized_pulses'][i], kwargs['tlist'][:-1], mark_freq=[0, -K_q, -K_q/2], mark_color=['r','g','b'], pos=0, xlim=[-(2*π), (2*π)])
     # Update λ
     #fac = 1
@@ -862,14 +733,14 @@ def modify_params(**kwargs):
     #print("λₐ = {}".format(kwargs['lambda_vals']))
 
 
-# In[131]:
+# In[ ]:
 
 
 # Reset results
 opt_result = None
 
 
-# In[132]:
+# In[ ]:
 
 
 def convergence_reason(opt_result):
@@ -883,44 +754,47 @@ def convergence_reason(opt_result):
         return False
 
 
-# In[133]:
+# In[ ]:
 
 
-from datetime import datetime
-def current_time():
-    return datetime.now().isoformat()[:16].replace('T',' ')
+folder = 'results'
+results = [(krotov.result.Result.load(os.path.join(os.getcwd(),folder,file), objectives=get_objectives(T=float(file.split('_')[-1][:-4]))), float(file.split('_')[-1][:-4])) for file in os.listdir(folder) if file[-4:]=='.dat']
+results = [results[-1]]
+print(results[-1][1])
+pulses = results[0][0].optimized_controls
+old_tlist = results[0][0].tlist
 
 
-# In[134]:
+# In[ ]:
 
 
-def sine_pulse(t, T=σ*6, σ=σ):
-    ω = ω_r-ω_q
-    return np.sin(ω*t)*start_pulse(t, T=T, σ=σ)
-
-
-# In[180]:
-
-
-def run_optim(T, lambda_a, ϕ):
+def run_optim(T, lambda_a, ϕ, pulses = None, old_tlist=None):
     σ = T/6
     print('T = {}'.format(T))
     #steps = 500
     tlist = np.linspace(0, T, 24*int(np.ceil(T)))
     s_pulse = None
-    H = hamiltonian(ampl0=1, use_rotating=True, start_pulse=s_pulse, T=T, phase=np.exp(-1j*ω_q*T))
+    if pulses:
+        pulses = [np.interp(tlist, old_tlist, pulse) for pulse in pulses]
+        print(len(tlist))
+        print(len(pulses[0]))
+        H = hamiltonian(ampl0=1, use_rotating=True, start_pulse=s_pulse, T=T, pulses=pulses)
+    else:
+        H = hamiltonian(ampl0=1, use_rotating=True, start_pulse=s_pulse, T=T)
+    
+    
     
     S_start = [zero_pulse, start_pulse, zero_pulse, zero_pulse]
-    S_funs = [S]*4
+    S_funs = [S, S, S, S, lambda t, T, σ:0, lambda t, T, σ:0]
     #for i, H_i in enumerate(H[1:]):
     #    if i < 4:
     #        H_i[1] = shape_field(H_i[1], S_start[i], T, σ)
-    #        plot_pulse(H_i[1], tlist)
-    #    else:
-    #        plot_pulse(H_i[1], tlist, ylim=True)
+        #    plot_pulse(H_i[1], tlist)
+        #else:
+        #    plot_pulse(H_i[1], tlist)
     
-    #objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in state_rot(ϕ, T)]
-    objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in ϕ]
+    objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in state_rot(ϕ, T)]
+    #objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in ϕ]
     if 'latest.dat' in os.listdir('results'):
         opt_result = krotov.result.Result.load('results/latest.dat', objectives=objectives)
     else:
@@ -934,9 +808,11 @@ def run_optim(T, lambda_a, ϕ):
     #if fid > F_oc_tar:
     #    print('Guess pulse realises transfer already.')
     #    return True
-    
-    pulse_options = {H_i[1]: dict(lambda_a=lambda_a, shape=lambda t: S_funs[i](t, T=T, σ=σ)) for i, H_i in enumerate(H[1:5])}
-    pulse_options.update({H_i[1]: dict(lambda_a=lambda_a, shape=lambda t: 0) for i, H_i in enumerate(H[5:])})
+    if pulses:
+        pulse_options = {id(H_i[1]): { 'lambda_a':lambda_a, 'shape':lambda t: S_funs[i](t, T=T, σ=σ)} for i, H_i in enumerate(H[1:])}
+    else:
+        pulse_options = {(H_i[1]): dict(lambda_a=lambda_a, shape=lambda t: S_funs[i](t, T=T, σ=σ)) for i, H_i in enumerate(H[1:5])}
+        pulse_options.update({(H_i[1]): dict(lambda_a=lambda_a, shape=lambda t: 0) for i, H_i in enumerate(H[5:])})
     
     #pulse_options = {
     #    H[2][1]: dict(lambda_a=lambda_a, shape=0),
@@ -951,7 +827,7 @@ def run_optim(T, lambda_a, ϕ):
         #iters = 5
         #if opt_result is not None:
         #    iters = opt_result.iters[-1] + iters
-    iters = 20
+    iters = 10 # Save to file every 10th iteration
     if opt_result is not None:
         iters = opt_result.iters[-1] + iters
     
@@ -974,24 +850,32 @@ def run_optim(T, lambda_a, ϕ):
         modify_params_after_iter = modify_params,
         iter_stop=iters,
         continue_from = opt_result,
-        store_all_pulses=True,
-        skip_initial_forward_propagation=False
+        store_all_pulses=False,
+        skip_initial_forward_propagation=False,
+        parallel_map=(
+            qutip.parallel_map,
+            qutip.parallel_map,
+            krotov.parallelization.parallel_map_fw_prop_step,
+        )
     )
     print(opt_result.message)
     opt_result.dump(os.path.join(os.getcwd(),'results','latest.dat'.format(current_time(),T)))
 
 
-# In[182]:
+# In[ ]:
 
 
 while True:
-    step_size = pulse_max(0)*1.0
+    step_size = pulse_max(0)*0.5
     λ = 1/step_size
-    ϕ = [[ tensor(basis(L,1), basis(N,0)), tensor((basis(L,0)).unit(), cat_1) ]]
+    #ϕ = [[ tensor(basis(L,0), basis(N,0)), tensor((basis(L,0)+basis(L,1)).unit(), basis(N,0)) ]]
+
+    coeffs = [(1,0), (1,-1), (1,1j), (1,1), (1,-1j), (0,1)]
+    ϕ = states(coeffs)
 
     #existing_times = [float(file.split('_')[4][:-4]) for file in os.listdir('results')]
     #t_times = np.flip(np.arange(1,21.5,1))
-    t_times = [80.]
+    t_times = [20.]
     for tot in t_times:
         #if tot not in [float(file.split('_')[4][:-4]) for file in os.listdir('results')]:
             #plot_cardinal(state_rot(ϕ, tot)[0])
@@ -1010,7 +894,7 @@ while True:
 # population dynamics under
 # this field.
 
-# In[30]:
+# In[ ]:
 
 
 def plot_results_3d(results):
@@ -1049,7 +933,7 @@ def plot_results_pulse_length(results, iteration=-1, ax=None):
     return ax
 
 
-# In[23]:
+# In[ ]:
 
 
 folder = 'best_results_resonator'
@@ -1062,7 +946,7 @@ plot_results_3d(results)
 plot_results_iteration(results)
 
 
-# In[565]:
+# In[ ]:
 
 
 plot_results_pulse_length(results, iteration=20, ax=ax)
@@ -1072,14 +956,14 @@ def interactive_plot(iteration):
 interact(interactive_plot, iteration=widgets.IntSlider(min=0,max=900,step=1,value=0));
 
 
-# In[1394]:
+# In[ ]:
 
 
 import matplotlib2tikz
 matplotlib2tikz.save("mytikz.tex")
 
 
-# In[1486]:
+# In[ ]:
 
 
 get_ipython().run_line_magic('matplotlib', 'inline')
@@ -1087,16 +971,34 @@ get_ipython().run_line_magic('matplotlib', 'inline')
 
 # # Analyze
 
-# In[14]:
+# In[ ]:
 
 
-folder = 'best_results_resonator'
+coeffs = [(1,0), (1,-1), (1,1j), (1,1), (1,-1j), (0,1)]
+#coeffs = [(1,np.exp(1j*π/2))]
+ϕ = states(coeffs)
+
+
+# In[ ]:
+
+
+# Move the file latest.dat in results to cat-code with the suffix *_T.dat e.g. cat_60.dat
+folder = 'cat-code'
 results = [(krotov.result.Result.load(os.path.join(os.getcwd(),folder,file), objectives=get_objectives(T=float(file.split('_')[-1][:-4]))), float(file.split('_')[-1][:-4])) for file in os.listdir(folder) if file[-4:]=='.dat']
-results = results[-1:]
+results = [results[-1]]
 print(results[-1][1])
 
 
-# In[25]:
+# In[ ]:
+
+
+print(results[0][0].info_vals[-1])
+
+#hours = sum(results[0][0].iter_seconds)/(60*60)
+#f"{int(np.floor(hours))}:{int(np.floor((60*(hours % np.floor(hours)))))}"
+
+
+# In[ ]:
 
 
 r = results[-1][0]
@@ -1111,86 +1013,260 @@ tlist2 = np.linspace(0, tlist[-1], steps2)
 Ω_r = c[2]+1j*c[3]
 Ω_r = np.interp(tlist2, tlist, Ω_r)
 
-pulses_lab = [Ω_q*np.exp(1j*ω_q*tlist2), np.conj(Ω_q)*np.exp(-1j*ω_q*tlist2), Ω_r*np.exp(1j*ω_r*tlist2), np.conj(Ω_r)*np.exp(-1j*ω_r*tlist2)]
-opt_dynamics = [ob.propagate(tlist, propagator=krotov.propagators.expm) for ob in r.optimized_objectives]
+pulses_lab = [np.conj(Ω_q)*np.exp(1j*ω_q*tlist2), np.conj(Ω_q)*np.exp(-1j*ω_q*tlist2), np.conj(Ω_r)*np.exp(1j*ω_r*tlist2), np.conj(Ω_r)*np.exp(-1j*ω_r*tlist2)]
+#opt_dynamics = [ob.propagate(tlist, propagator=krotov.propagators.expm) for ob in r.optimized_objectives]
 print('Done')
 
 
-# In[228]:
+# In[ ]:
 
 
-'''
-fig = plot_pulse(c[0], tlist)
-fig.axes[0].set_ylabel('Re($\Omega_q$)')
-matplotlib2tikz.save("../Figures/Results/cat_pulse_shape_{}_q_Real.tikz".format(str(T).replace('.',',')),
-                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
+occs = []
+#plot_evolution(opt_dynamics)
+#for i in range(len(opt_dynamics)):
+#fig = plot_pulse(Ω_q, tlist)
+#fig.axes[0].set_ylabel('$\Omega_q$')
+#matplotlib2tikz.save("../Figures/Results/cat_pulse_shape_{}_q.tikz".format(str(T).replace('.',',')),
+#                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
 
-fig = plot_pulse(c[1], tlist)
-fig.axes[0].set_ylabel('Im($\Omega_q$)')
-matplotlib2tikz.save("../Figures/Results/cat_pulse_shape_{}_q_Imag.tikz".format(str(T).replace('.',',')),
-                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
+#fig = plot_pulse(c[1], tlist)
+#fig.axes[0].set_ylabel('Im($\Omega_q$)')
+#matplotlib2tikz.save("../Figures/Results/cat_pulse_shape_{}_q_Imag.tikz".format(str(T).replace('.',',')),
+#                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
 
-fig = plot_pulse(c[2], tlist)
-fig.axes[0].set_ylabel('Re($\Omega_r$)')
-matplotlib2tikz.save("../Figures/Results/cat_pulse_shape_{}_r_Real.tikz".format(str(T).replace('.',',')),
-                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
+#fig = plot_pulse(Ω_r, tlist)
+#fig.axes[0].set_ylabel('$\Omega_r$')
+#matplotlib2tikz.save("../Figures/Results/cat_pulse_shape_{}_r.tikz".format(str(T).replace('.',',')),
+#                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
 
-fig = plot_pulse(c[3], tlist)
-fig.axes[0].set_ylabel('Im($\Omega_r$)')
-matplotlib2tikz.save("../Figures/Results/cat_pulse_shape_{}_r_Imag.tikz".format(str(T).replace('.',',')),
-                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
+#fig = plot_pulse(c[3], tlist)
+#fig.axes[0].set_ylabel('Im($\Omega_r$)')
+#matplotlib2tikz.save("../Figures/Results/cat_pulse_shape_{}_r_Imag.tikz".format(str(T).replace('.',',')),
+#                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
 
-fig = qubit_occupation(opt_dynamics[0])
-matplotlib2tikz.save("../Figures/Results/cat_qubit_occ_{}.tikz".format(str(T).replace('.',',')),
-                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
+    #fig = qubit_occupation(opt_dynamics[i])
+    #matplotlib2tikz.save(f"../Figures/Results/cat_qubit_occ_{str(T).replace('.',',')}_{i}.tikz",
+    #                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
 
-fig = resonator_occupation(opt_dynamics[0])
-matplotlib2tikz.save("../Figures/Results/cat_res_occ_{}.tikz".format(str(T).replace('.',',')),
-                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
-'''
-fig = plot_spectrum(pulses_lab[0], tlist2, mark_freq=[ω_q, ω_ef, ω_gf],mark_color=[u'#1f77b4', u'#ff7f0e', u'#2ca02c'], pos=0, xlim=[(2*π)*5.5, (2*π)*6.9])
+    #n = resonator_occupation(opt_dynamics[i],export=False);
+    #occs.append([max(n[i]) for i in range(8)])
+    #matplotlib2tikz.save(f"../Figures/Results/cat_res_occ_{str(T).replace('.',',')}_{i}.tikz",
+    #                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
+    
+power_two = 2**25 # Pad pulse with power_two zeros to increase frequency spectrum resolution
+fig = plot_spectrum(pulses_lab[0], tlist2, mark_freq=[ω_q],mark_color=[u'#1f77b4', u'#ff7f0e', u'#2ca02c'], pos=0, xlim=[(2*π)*5.5, (2*π)*6.9])
 fig.axes[0].set_title('')
-#fig.axes[0].legend(['Spec.',r'$\omega_{01}$',r'$\omega_{12}$',r'$\omega_{02}$'])
-matplotlib2tikz.save("../Figures/Results/cat_pulse_spectrum_qubit_{}.tikz".format(str(T).replace('.',',')),
-                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
+fig.axes[0].legend(['Spectrum',r'$\omega_{q}-\kappa_q$',r'$\omega_{q}$',r'$\omega_{q}+\kappa_q$'])
+#matplotlib2tikz.save("../Figures/Results/cat_pulse_spectrum_qubit_{}_zoom.tikz".format(str(T).replace('.',',')),
+#                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
 
-fig = plot_spectrum(pulses_lab[0], tlist2, mark_freq=[ω_q, ω_ef, ω_gf, ω_r, ω_r+K_q/2, ω_r+K_q],mark_color=[u'#1f77b4', u'#ff7f0e', u'#2ca02c',u'#1f77b4', u'#ff7f0e', u'#2ca02c'], pos=0, xlim=[(2*π)*5.5, (2*π)*8.9])
-fig.axes[0].set_title('')
-#fig.axes[0].legend(['Spec.',r'$\omega_{01}$',r'$\omega_{12}$',r'$\omega_{02}$'])
+#fig = plot_spectrum(pulses_lab[0], tlist2, mark_freq=[ω_q, 2*ω_r-ω_q, ω_r, ω_r/2, ω_r/4],mark_color=[u'#ff7f0e',u'#1f77b4','k','k','k','k'], pos=0, xlim=[0*(2*π)*5.5, (2*π)*12])
+#fig.axes[0].set_title('')
+#fig.axes[0].legend(['Spectrum',r'$\omega_{q}$',r'$2\omega_r-\omega_{q}$',r'$n\omega_r$'])
 #matplotlib2tikz.save("../Figures/Results/cat_pulse_spectrum_qubit_{}.tikz".format(str(T).replace('.',',')),
 #                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
 
-fig = plot_spectrum(pulses_lab[2], tlist2, mark_freq=[ω_r, ω_r+K_q/2, ω_r+K_q],mark_color=[u'#1f77b4', u'#ff7f0e', u'#2ca02c'], pos=0, xlim=[(2*π)*7.6, (2*π)*8.9])
-fig.axes[0].set_title('')
-#fig.axes[0].legend(['Spec.',r'$\omega_{01}$',r'$\omega_{12}$',r'$\omega_{02}$'])
-matplotlib2tikz.save("../Figures/Results/cat_pulse_spectrum_res_{}.tikz".format(str(T).replace('.',',')),
-                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
+#fig = plot_spectrum(pulses_lab[2], tlist2, mark_freq=[ω_r],mark_color=[u'#1f77b4', u'#ff7f0e', u'#2ca02c'], pos=0, xlim=[(2*π)*7.6, (2*π)*8.9])
+#fig.axes[0].set_title('')
+#fig.axes[0].legend(['Spectrum',r'$\omega_{r}$',r'$\omega_{r}-\kappa_q$',r'$\omega_{r}+\kappa_q$'])
+#matplotlib2tikz.save("../Figures/Results/cat_pulse_spectrum_res_{}_zoom.tikz".format(str(T).replace('.',',')),
+#                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
 
-fig = plot_spectrum(pulses_lab[2], tlist2, mark_freq=[ω_r, ω_r+K_q/2, ω_r+K_q, 2*ω_r-ω_q, 2*ω_r-(ω_q+K_q/2), 2*ω_r-(ω_q+K_q)],mark_color=[u'#1f77b4', u'#ff7f0e', u'#2ca02c',u'#1f77b4', u'#ff7f0e', u'#2ca02c'], pos=0, xlim=[(2*π)*7.6, (2*π)*11])
-fig.axes[0].set_title('')
-#fig.axes[0].legend(['Spec.',r'$\omega_{01}$',r'$\omega_{12}$',r'$\omega_{02}$'])
-matplotlib2tikz.save("../Figures/Results/cat_pulse_spectrum_res_{}.tikz".format(str(T).replace('.',',')),
-                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
+#fig = plot_spectrum(pulses_lab[2], tlist2, mark_freq=[ω_r, ω_q, 2*ω_r-ω_q],mark_color=[u'#ff7f0e', u'#2ca02c',u'#1f77b4', u'#ff7f0e', u'#2ca02c'], pos=0, xlim=[0*(2*π)*7.6, (2*π)*12])
+#fig.axes[0].set_title('')
+#fig.axes[0].legend(['Spectrum',r'$\omega_{r}$',r'$\omega_{q}$',r'$2\omega_{r}-\omega_q$'])
+#matplotlib2tikz.save("../Figures/Results/cat_pulse_spectrum_res_{}.tikz".format(str(T).replace('.',',')),
+#                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
 
-'''
-final_state_q = opt_dynamics[0].states[-1].ptrace(0)
-final_state_r = opt_dynamics[0].states[-1].ptrace(1)
-target_state_q = r.objectives[0].target.ptrace(0)
-target_state_r = r.objectives[0].target.ptrace(1)
+#    start_state = final_state = opt_dynamics[i].states[0]
+#    start_state_q = final_state.ptrace(0)
+#    final_state = opt_dynamics[i].states[-1]
+#    final_state_q = final_state.ptrace(0)
+#    final_state_r = final_state.ptrace(1)
+#    target_state = r.objectives[i].target
+#    target_state_q = r.objectives[i].target.ptrace(0)
+#    target_state_r = r.objectives[i].target.ptrace(1)
+#    print((final_state.dag()*target_state)[0][0])
+#    qutip.visualization.hinton(final_state*final_state.dag())
+    #fig = plot_cardinal([start_state_q,target_state_q,final_state_q])
+    #fig.save(name="../Figures/Results/cat_bloch_sphere_{}.png".format(str(T).replace('.',',')))
 
-fig = plot_cardinal([final_state_q])
-fig.save(name="../Figures/Results/cat_bloch_sphere_{}.png".format(str(T).replace('.',',')))
+    #fig, ax = qutip.visualization.plot_wigner(final_state_r, figsize=(4.5,4.5), alpha_max=5)
+    #ax.set_title('')
+    #fig.savefig(fname=f"../Figures/Results/cat_wigner_{str(T).replace('.',',')}_{i}.png")
 
-fig, ax = qutip.visualization.plot_wigner_fock_distribution(final_state_r)
-fig.savefig(fname="../Figures/Results/cat_wigner_fin_{}.png".format(str(T).replace('.',',')))
+    #fig, ax = qutip.visualization.plot_wigner_fock_distribution(final_state_r)
+    #fig, ax = qutip.visualization.plot_wigner_fock_distribution(target_state_r)
+    #fig.savefig(fname="../Figures/Results/cat_wigner_tar_{}.png".format(str(T).replace('.',',')))
 
-fig, ax = qutip.visualization.plot_wigner_fock_distribution(target_state_r)
-fig.savefig(fname="../Figures/Results/cat_wigner_tar_{}.png".format(str(T).replace('.',',')))
-'''
-subprocess.call("../Figures/Results/move_files.sh", shell=False)
+#subprocess.call("../Figures/Results/move_files.sh", shell=False)
 
 
-# In[197]:
+# # Check pulse solution for states around the Bloch Sphere
+
+# In[ ]:
+
+
+def get_new_objectives(T=None, phi=states(coeffs)):
+    if use_rotating:
+        objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in state_rot(phi, T)]
+    else:
+        objectives = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H) for ψ in ϕ]
+    return objectives
+
+
+# In[ ]:
+
+
+def fid_from_state(coeffs):
+    coeffs = [coeffs]
+    folder = 'cat-code'
+    phi = states(coeffs)
+    results = [(krotov.result.Result.load(os.path.join(os.getcwd(),folder,file), objectives=get_new_objectives(T=float(file.split('_')[-1][:-4]),phi=phi)), float(file.split('_')[-1][:-4])) for file in os.listdir(folder) if file[-4:]=='.dat']
+    results = [results[-1]]
+    r = results[-1][0]
+    T = results[-1][1]
+    tlist = r.tlist
+    opt_dynamics = [ob.propagate(tlist, propagator=krotov.propagators.expm) for ob in r.optimized_objectives]
+    final_state = opt_dynamics[0].states[-1]
+    target_state = r.objectives[0].target
+    #qutip.visualization.plot_wigner(target_state.ptrace(1))
+    print([coeffs[0][0], coeffs[0][1], fid(final_state, target_state)])
+
+
+# In[ ]:
+
+
+bloch_space = []
+for theta in np.linspace(0,π,40):
+    for phi in np.linspace(0,2*π,20):
+        coef = (np.cos(theta)  ,  np.exp(1j*phi)*np.sin(theta))
+        bloch_space.append(coef)
+bloch_space = bloch_space[19:-19]
+bloch_space
+
+
+# In[ ]:
+
+
+bl = qutip.Bloch()
+
+bl.point_marker = 'o'
+bl.point_color = 'r'
+bl.add_states(qutip.basis(2,0), kind='point')
+bl.add_states(qutip.basis(2,1), kind='point')
+bl.show()
+
+
+# In[ ]:
+
+
+import multiprocessing
+state_list = bloch_space
+pool = multiprocessing.Pool(processes=4)
+pool.map(fid_from_state, state_list)
+pool.close()
+pool.join()
+print('DONE')
+
+
+# In[ ]:
+
+
+#result_list = [eval(res) for res in result_list.split('\n')[1:-1]]
+#result_list = result_list[1:-1]
+#fid_list = [res[2] for res in result_list]
+for c in [(0,np.exp(1j*0))]:
+    fid_from_state(c)
+
+
+# In[ ]:
+
+
+get_ipython().run_line_magic('matplotlib', 'inline')
+bl = qutip.Bloch()
+bl.point_marker = 'o'
+colors = [[(res[2]-fid_min)/(fid_max-fid_min),0 , (fid_max-res[2])/(fid_max-fid_min)] for res in result_list]
+bl.point_color = colors
+for res in result_list:
+    bl.add_states((states([(res[0],res[1])])[0][0]).ptrace(0), kind='point')
+bl.view = (-90,90)
+bl.show()
+
+
+# In[ ]:
+
+
+#color_list = [[i/len(opt_dynamics[0].states),i/len(opt_dynamics[0].states),i/len(opt_dynamics[0].states)] for i in range(len(opt_dynamics[0].states))]
+color_list = linear_gradient('#FFF0F0','#0000FF', n = len(opt_dynamics[0].states))
+#bl = plot_evolution(opt_dynamics[1],steps=1, color_list=color_list)
+plot_cardinal([opt_dynamics[2].states[0]])
+
+
+# In[ ]:
+
+
+qutip.operators.destroy(2)*[basis(2,0),basis(2,1)]
+
+
+# In[ ]:
+
+
+def hex_to_RGB(hex):
+    ''' "#FFFFFF" -> [255,255,255] '''
+    # Pass 16 to the integer function for change of base
+    return [int(hex[i:i+2], 16) for i in range(1,6,2)]
+
+
+def RGB_to_hex(RGB):
+    ''' [255,255,255] -> "#FFFFFF" '''
+    # Components need to be integers for hex to make sense
+    RGB = [int(x) for x in RGB]
+    return "#"+"".join(["0{0:x}".format(v) if v < 16 else
+            "{0:x}".format(v) for v in RGB])
+
+def linear_gradient(start_hex, finish_hex="#FFFFFF", n=10):
+    s = hex_to_RGB(start_hex)
+    f = hex_to_RGB(finish_hex)
+    # Initilize a list of the output colors with the starting color
+    RGB_list = [s]
+    # Calcuate a color at each evenly spaced value of t from 1 to n
+    for t in range(1, n):
+    # Interpolate RGB vector for color at the current value of t
+        curr_vector = [
+          int(s[j] + (float(t)/(n-1))*(f[j]-s[j]))
+          for j in range(3)
+        ]
+        # Add it to our list of output colors
+        RGB_list.append(curr_vector)
+
+    return np.array(RGB_list)/255
+
+
+# # Other plots and gif generation
+
+# In[ ]:
+
+
+occs2
+
+
+# In[ ]:
+
+
+#occs2 = [[occ[i] for occ in occs] for i in range(8)]
+#print(occs2)
+fig, ax= plt.subplots()
+ax.plot([f'$|{i}\\rangle$' for i in range(8)],occs2,'.')
+ax.set_xlabel('Resonator fock state')
+ax.set_ylabel('Maximum occupation')
+#ax.legend(['\(\ket{0}\)','\(\ket{1}\)','\((\ket{0}+\ket{1})/\sqrt{2}\)','\((\ket{0}-\ket{1})/\sqrt{2}\)','\((\ket{0}+i\ket{1})/\sqrt{2}\)','\((\ket{0}-i\ket{1})/\sqrt{2}\)'])
+#matplotlib2tikz.save("../Figures/Results/cat_max_occ.tikz",
+#                     figureheight = '\\figureheight',figurewidth = '\\figurewidth')
+#subprocess.call("../Figures/Results/move_files.sh", shell=False)
+
+
+# In[ ]:
 
 
 def gif_fun(start, opt):
@@ -1230,13 +1306,13 @@ def gif_fun(start, opt_dynamics):
 #qutip.visualization.plot_wigner_fock_distribution(opt_dynamics[0].states[1919].ptrace(1), fig=fig, axes=ax)
 
 
-# In[221]:
+# In[ ]:
 
 
 pulses
 
 
-# In[45]:
+# In[ ]:
 
 
 fig, ax = plt.subplots(figsize=(16,4));
@@ -1249,7 +1325,7 @@ for i in range(911):
     fig.savefig(fname=f'cat_fid_gif/{str(i).zfill(3)}.png');
 
 
-# In[46]:
+# In[ ]:
 
 
 fig, ax = plt.subplots(figsize=(16,4));
@@ -1259,7 +1335,7 @@ for i in range(len(results[-1][0].all_pulses)):
     ax.clear();
 
 
-# In[242]:
+# In[ ]:
 
 
 import multiprocessing  
@@ -1271,7 +1347,7 @@ pool.join()
 print('done')
 
 
-# In[141]:
+# In[ ]:
 
 
 xlabels = ['$|0\\rangle$','$|1\\rangle$','$|2\\rangle$']
@@ -1290,20 +1366,20 @@ print(fid(final_state, target_state))
 qutip.visualization.hinton(final_state.ptrace(0)*final_state.ptrace(0).dag())
 
 
-# In[154]:
+# In[ ]:
 
 
 np.abs((ω_q - ω_r)/(2*π))
 
 
-# In[182]:
+# In[ ]:
 
 
 plot_spectrum(pulses_lab[0], tlist2, mark_freq=[ω_q, ω_ef, ω_gf, ω_r, ω_r+K_r/2, ω_r+K_r],mark_color=['r','g','b','r','g','b'], pos=0, xlim=[2*π*5, 2*π*9]);
 plot_spectrum(pulses_lab[2], tlist2, mark_freq=[ω_r, ω_r+K_r/2, ω_r+K_r , 2*ω_r - ω_q, 2*ω_r -ω_ef, 2*ω_r -ω_gf,],mark_color=['r','g','b','r','g','b'], pos=0, xlim=[ω_r*0.90, ω_r*1.4]);
 
 
-# In[219]:
+# In[ ]:
 
 
 from matplotlib.font_manager import findfont, FontProperties
@@ -1311,45 +1387,7 @@ font = findfont(FontProperties(family=['sans-serif']))
 font
 
 
-# # Something something
-
-# In[645]:
-
-
-[plot_pulse(c, tlist) for c in opt_result.optimized_controls];
-
-
-# In[ ]:
-
-
-plot_pulse(np.abs(opt_result.optimized_controls[0]+1j*opt_result.optimized_controls[1]), tlist)
-plot_pulse(np.angle(opt_result.optimized_controls[0]+1j*opt_result.optimized_controls[1]), tlist)
-
-
-# In contrast to the dynamics under the guess field, the optimized field indeed
-# drives the initial state $\ket{\Psi_{\init}} = \ket{0}$ to the desired target
-# state $\ket{\Psi_{\tgt}} = \ket{1}$.
-
-# In[ ]:
-
-
-opt_dynamics = [ob.mesolve(tlist, progress_bar=True) for ob in opt_result.optimized_objectives]
-
-
-# In[ ]:
-
-
-qubit_occupation(opt_dynamics[0])
-
-
-# In[ ]:
-
-
-plot_evolution(opt_dynamics)
-#plot_all(opt_dynamics, ϕ)
-
-
-# # Simulate dynamics in lab frame
+# # Simulate dynamics in lab frame (old and unused)
 
 # In[ ]:
 
@@ -1364,6 +1402,17 @@ pulses_lab = [Ω*np.exp(1j*ω_q*tlist2), np.conj(Ω)*np.exp(-1j*ω_q*tlist2)]
 H_lab = hamiltonian(ω=1.0, ampl0=1, use_rotating=False, pulses=pulses_lab)
 objectives_lab = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H_lab) for ψ in ϕ]
 opt_dynamics_lab = [ob.mesolve(tlist2, progress_bar=True, options=qutip.Options(nsteps=50000)) for ob in objectives_lab]
+
+tlist2 = np.linspace(0, T, 1000*int(np.ceil(T)))
+rotating_pulses = [np.array([H_i[1](t,0) for t in tlist]) for H_i in H[1:]]
+Ω_q = rotating_pulses[0]+1j*rotating_pulses[1]
+Ω_q = np.interp(tlist2, tlist, Ω_q)
+Ω_r = rotating_pulses[2]+1j*rotating_pulses[3]
+Ω_r = np.interp(tlist2, tlist, Ω_r)
+pulses_lab = [Ω_q*np.exp(1j*ω_q*tlist2), np.conj(Ω_q)*np.exp(-1j*ω_q*tlist2), Ω_r*np.exp(1j*ω_r*tlist2), np.conj(Ω_r)*np.exp(-1j*ω_r*tlist2)]
+H_lab = hamiltonian(ampl0=1, use_rotating=False, pulses=pulses_lab)
+objectives_lab = [krotov.Objective(initial_state=ψ[0], target=ψ[1], H=H_lab) for ψ in ϕ]
+opt_dynamics_lab = [ob.mesolve(tlist2, progress_bar=True, options=qutip.Options(nsteps=50000)) for ob in r.optimized_objectives]
 
 
 # In[ ]:
@@ -1387,8 +1436,6 @@ plot_cardinal([opt_dynamics_lab[0].states[0]])
 plot_cardinal([opt_dynamics_lab[0].states[-1]])
 
 
-# # Frequency analysis
-
 # In[ ]:
 
 
@@ -1403,7 +1450,7 @@ qubit_pulses = opt_result.optimized_controls
 time_list = tlist
 
 
-# In[68]:
+# In[ ]:
 
 
 plot_spectrum(qubit_pulses[0], time_list, mark_freq=[ω_q, ω_q + K_q, ω_q - K_q], pos=1)
