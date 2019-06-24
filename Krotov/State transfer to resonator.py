@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# # Optimization of a State-to-State Transfer in a Two-Level-System
+# # Optimization of Encoding Pulses for Cat Codes
 
 # In[ ]:
 
